@@ -1,25 +1,14 @@
 from pathlib import Path
 
-from mcp.server import Server
-from mcp.types import Tool
+import aiosqlite
+from mcp.server.fastmcp import FastMCP
 
-def serve(db_sqlite_path: Path, metadata_yml_path: Path) -> None:
-    server = Server(db_sqlite_path.basename)
 
-    @server.list_tools()
-    def list_tools() -> list[Tool]:
-        """List available local data tools"""
-        return [
-            Tool(
-                name="get_dataset_description",
-                description="Get the description of the dataset. HIGHLY RECOMMENDED to run this first to understand what this data is.",
-            ),
-            Tool(
-                name="list_tables",
-                description="List tables in the dataset."
-            ),
-            Tool(
-                name="run_query",
-                description="Run a query against the data."
-            )
-        ]
+async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata_yml_path: Path | None = None) -> FastMCP:
+    server = FastMCP("mcp-sqlite", stateless_http=True, json_response=True)
+
+    @server.resource("sqlite://", mime_type="application/json")
+    def sqlite_resource() -> dict:
+        return {"databases": []}
+
+    return server

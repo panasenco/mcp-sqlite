@@ -20,4 +20,7 @@ Compatibility with Datasette allows both humans and AI to interact with the same
 1.  Clone this repo locally.
 2.  Run `uv venv` to create the Python virtual environment.
     Then run `source .venv/bin/activate` on Unix or `.venv\Scripts\activate` on Windows.
-3.  
+
+- Run `python -m pytest` to run tests.
+- Run `ruff format` to format Python code.
+- Run `pyright` for static type checking.

@@ -5,10 +5,24 @@ description = "Making local data equally accessible to AI agents and humans. Dat
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiosqlite>=0.21.0",
     "mcp>=1.9.2",
 ]
 
 [dependency-groups]
 dev = [
+    "anyio>=4.9.0",
     "mcp[cli]>=1.9.2",
+    "pyright>=1.1.401",
+    "pytest>=8.3.5",
+    "ruff>=0.11.12",
 ]
+
+[tool.pyright]
+include = [
+    "mcp_sqlite/",
+]
+
+[tool.ruff]
+# Allow lines to be as long as 120.
+line-length = 120
