@@ -27,4 +27,4 @@ async def test_resource(empty_server):
     resources = await empty_server.read_resource("sqlite://")
     assert len(resources) == 1
     assert resources[0].mime_type == "application/json"
-    assert json.loads(resources[0].content) == {"databases": []}
+    assert json.loads(resources[0].content) == {"databases": {"main": {"tables": {}}}}
