@@ -1,3 +1,6 @@
+import argparse
+import asyncio
+import logging
 from pathlib import Path
 
 import aiosqlite
@@ -61,3 +64,36 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: d
         return catalog
 
     return server
+
+async def main(sqlite_file: str, metadata_yaml_file: str | None = None):
+    async with aiosqlite.connect(f"file:{sqlite_file}", uri=True) as sqlite_connection:
+        server = await mcp_sqlite_server(sqlite_connection=sqlite_connection)
+        server.run(transport="stdio")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="mcp-sqlite-server",
+        description="CLI command to start an MCP server for interacting with SQLite data.",
+    )
+    parser.add_argument(
+        "sqlite_file",
+        help="Path to SQLite file to serve the MCP server for.",
+    )
+    parser.add_argument(
+        "-m",
+        "--metadata",
+        help="Path to Datasette-compatible metadata JSON file.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="Be verbose. Include once for INFO output, twice for DEBUG output.",
+        action="count",
+        default=0,
+    )
+    args = parser.parse_args()
+    LOGGING_LEVELS = [logging.WARNING, logging.INFO, logging.DEBUG]
+    logging.basicConfig(level=LOGGING_LEVELS[min(args.verbose, len(LOGGING_LEVELS) - 1)])  # cap to last level index
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main(sqlite_file=args.sqlite_file, metadata_yaml_file=args.metadata))
