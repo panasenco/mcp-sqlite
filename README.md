@@ -20,6 +20,11 @@ Compatibility with Datasette allows both humans and AI to interact with the same
 1.  Clone this repo locally.
 2.  Run `uv venv` to create the Python virtual environment.
     Then run `source .venv/bin/activate` on Unix or `.venv\Scripts\activate` on Windows.
+3.  Run the server with [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector)
+    (you'll have to [install Node.js and npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) first):
+    ```
+    npx @modelcontextprotocol/inspector uv run mcp_sqlite
+    ```
 
 - Run `python -m pytest` to run tests.
 - Run `ruff format` to format Python code.

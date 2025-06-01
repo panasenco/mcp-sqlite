@@ -4,29 +4,60 @@ import aiosqlite
 from mcp.server.fastmcp import FastMCP
 
 
-async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: dict | None = None) -> FastMCP:
+async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: dict = {}) -> FastMCP:
+    """Create a catalog of databases, tables, and columns that are actually in the connection, enriched with optional metadata."""
     server = FastMCP("mcp-sqlite", stateless_http=True, json_response=True)
 
-    @server.resource("sqlite://", mime_type="application/json")
-    async def sqlite_resource() -> dict:
+    @server.resource("catalog://", mime_type="application/json")
+    async def catalog() -> dict:
+        # Copy all metadata except databases
+        catalog = {key: value for key, value in metadata.items() if key != "databases"}
+        # Initialize databases as an empty dict first
+        catalog["databases"] = {}
+        # Get the true database names and stems of their filepaths
         cursor = await sqlite_connection.execute("pragma database_list")
-        database_names_stems = [
+        for database_name, database_stem in [
             (database_row[1], Path(database_row[2]).stem) for database_row in await cursor.fetchall()
-        ]
-        resource = {"databases": {}}
-        for database_name, database_stem in database_names_stems:
-            resource["databases"][database_name] = {"tables": {}}
-            cursor = await sqlite_connection.execute(f"pragma {database_name}.table_list")
-            table_names = [
-                table_row[1] for table_row in await cursor.fetchall() if not table_row[1].startswith("sqlite_")
-            ]
-            for table_name in table_names:
-                cursor = await sqlite_connection.execute(f"pragma {database_name}.table_info({table_name})")
-                resource["databases"][database_name]["tables"][table_name] = {
-                    "columns": {
-                        column_name: "" for column_name in [column_row[1] for column_row in await cursor.fetchall()]
-                    }
+        ]:
+            try:
+                # Rename from the stem to the true SQLite-internal name (usually "main")
+                database_dict = {
+                    key: value for key, value in metadata["databases"][database_stem].items() if key != "tables"
                 }
-        return resource
+            except KeyError:
+                database_dict = {}
+            database_dict["tables"] = {}
+            catalog["databases"][database_name] = database_dict
+            # Get the table names
+            cursor = await sqlite_connection.execute(f"pragma {database_name}.table_list")
+            for table_name in [
+                table_row[1] for table_row in await cursor.fetchall() if not table_row[1].startswith("sqlite_")
+            ]:
+                try:
+                    table_dict = {
+                        key: value
+                        for key, value in metadata["databases"][database_stem]["tables"][table_name].items()
+                        if key != "columns"
+                    }
+                except KeyError:
+                    table_dict = {}
+                # Omit hidden tables
+                if "hidden" in table_dict and table_dict["hidden"] == True:
+                    continue
+                table_dict["columns"] = {}
+                catalog["databases"][database_name]["tables"][table_name] = table_dict
+                # Get the column names
+                cursor = await sqlite_connection.execute(f"pragma {database_name}.table_info({table_name})")
+                for column_name in [column_row[1] for column_row in await cursor.fetchall()]:
+                    try:
+                        column_description = metadata["databases"][database_stem]["tables"][table_name]["columns"][
+                            column_name
+                        ]
+                    except KeyError:
+                        column_description = ""
+                    catalog["databases"][database_name]["tables"][table_name]["columns"][column_name] = (
+                        column_description
+                    )
+        return catalog
 
     return server
