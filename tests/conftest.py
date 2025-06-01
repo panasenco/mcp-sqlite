@@ -1,8 +1,9 @@
 import logging
 from pathlib import Path
-import tempfile
 
+import aiofiles
 import aiosqlite
+import asyncio
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 import pytest
@@ -28,9 +29,13 @@ async def minimal_server():
         await sqlite_connection.commit()
         yield await mcp_sqlite_server(sqlite_connection)
 
+
 @pytest.fixture
 async def small_sqlite_file():
-    with tempfile.NamedTemporaryFile("w", prefix="mcp_sqlite_test_", suffix=".db", delete_on_close=False) as db_file:
+    async with aiofiles.tempfile.NamedTemporaryFile(
+        "w", prefix="mcp_sqlite_test_", suffix=".db", delete_on_close=False
+    ) as db_file:
+        await db_file.close()
         async with aiosqlite.connect(f"file:{db_file.name}", uri=True) as sqlite_connection:
             await sqlite_connection.execute("create table table1 (col1 primary key, col2)")
             await sqlite_connection.execute("insert into table1 values (3, 'x')")
@@ -42,18 +47,13 @@ async def small_sqlite_file():
             await sqlite_connection.commit()
         logging.debug(f"small_sqlite_file: {db_file.name}")
         yield db_file.name
+        # Give time to the MCP server to exit before deleting the SQLite file
+        await asyncio.sleep(1)
+
 
 @pytest.fixture
 async def small_metadata_server(small_sqlite_file):
     async with aiosqlite.connect(f"file:{small_sqlite_file}", uri=True) as sqlite_connection:
-        await sqlite_connection.execute("create table table1 (col1 primary key, col2)")
-        await sqlite_connection.execute("insert into table1 values (3, 'x')")
-        await sqlite_connection.execute("insert into table1 values (4, 'y')")
-        await sqlite_connection.execute("create table table2 (col3)")
-        await sqlite_connection.execute("insert into table2 values (false)")
-        await sqlite_connection.execute("create table table4 (col4)")
-        await sqlite_connection.execute("insert into table4 values (5)")
-        await sqlite_connection.commit()
         yield await mcp_sqlite_server(
             sqlite_connection,
             {
@@ -104,12 +104,14 @@ async def small_metadata_server(small_sqlite_file):
             },
         )
 
+
 @pytest.fixture
 async def mcp_client_session(small_sqlite_file):
-    root_path = Path(__file__).parent.parent
-    logging.debug(f"{root_path=}")
     async with stdio_client(
-        StdioServerParameters(command="uv", args=["--directory", str(root_path), "run", "mcp_sqlite/server.py", small_sqlite_file])
+        StdioServerParameters(
+            command="uv",
+            args=["--directory", str(Path(__file__).parent.parent), "run", "mcp_sqlite/server.py", small_sqlite_file],
+        )
     ) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()

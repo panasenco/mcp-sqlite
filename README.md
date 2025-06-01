@@ -23,7 +23,7 @@ Compatibility with Datasette allows both humans and AI to interact with the same
 3.  Run the server with [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector)
     (you'll have to [install Node.js and npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) first):
     ```
-    npx @modelcontextprotocol/inspector uv run mcp_sqlite
+    npx @modelcontextprotocol/inspector uv run mcp_sqlite/server.py test.db
     ```
 
 - Run `python -m pytest` to run tests.

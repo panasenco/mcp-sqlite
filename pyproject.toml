@@ -11,6 +11,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "aiofiles>=24.1.0",
     "anyio>=4.9.0",
     "mcp[cli]>=1.9.2",
     "pyright>=1.1.401",

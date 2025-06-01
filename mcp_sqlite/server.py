@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 import aiosqlite
+import anyio
 from mcp.server.fastmcp import FastMCP
 
 
@@ -65,10 +66,11 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: d
 
     return server
 
+
 async def main(sqlite_file: str, metadata_yaml_file: str | None = None):
     async with aiosqlite.connect(f"file:{sqlite_file}", uri=True) as sqlite_connection:
         server = await mcp_sqlite_server(sqlite_connection=sqlite_connection)
-        server.run(transport="stdio")
+        await server.run_stdio_async()
 
 
 if __name__ == "__main__":
@@ -95,5 +97,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     LOGGING_LEVELS = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=LOGGING_LEVELS[min(args.verbose, len(LOGGING_LEVELS) - 1)])  # cap to last level index
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(sqlite_file=args.sqlite_file, metadata_yaml_file=args.metadata))
+    anyio.run(main, args.sqlite_file, args.metadata)
