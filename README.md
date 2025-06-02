@@ -17,7 +17,7 @@ uvx datasette serve path/to/data.db --metadata path/to/metadata.yml
 | Datasette canned query feature | Supported in mcp-sqlite? |
 | ------------------------------ | ------------------------ |
 | [Displayed in catalog](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
-| [Executable](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ |
+| [Executable](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
 | [Titles](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ |
 | [Descriptions](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ |
 | [Parameters](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ |

@@ -14,7 +14,7 @@ async def test_server_empty_catalog(empty_server):
     assert len(await empty_server.list_tools()) > 0
     responses = await empty_server.call_tool("get_catalog", {})
     assert len(responses) == 1
-    assert json.loads(responses[0].text) == {"databases": {"main": {"tables": {}}}}
+    assert json.loads(responses[0].text) == {"databases": {"main": {"queries": {}, "tables": {}}}}
 
 
 @pytest.mark.anyio
@@ -25,6 +25,7 @@ async def test_server_minimal_catalog(minimal_server):
     assert json.loads(responses[0].text) == {
         "databases": {
             "main": {
+                "queries": {},
                 "tables": {
                     "table1": {
                         "columns": {

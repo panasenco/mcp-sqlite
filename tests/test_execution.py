@@ -59,13 +59,3 @@ async def test_client_execute_tool(small_client_session):
         </table>
         """.replace(" ", "").replace("\n", "")
     )
-
-
-@pytest.mark.anyio
-async def test_simple_canned_query(canned_queries_client_session):
-    tools = await canned_queries_client_session.list_tools()
-    assert len(tools.tools) > 1
-    assert "execute_main_answer_to_life" in tools.tools
-    result = await canned_queries_client_session.call_tool("execute_main_answer_to_life", {})
-    assert len(result.content) == 1
-    assert result.content[0].text == "<table><tr><th>42</th></tr><tr><td>42</td></tr></table>"

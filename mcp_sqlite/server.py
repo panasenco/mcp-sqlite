@@ -2,7 +2,6 @@ import argparse
 import html
 import logging
 from pathlib import Path
-import re
 
 import aiosqlite
 import anyio
@@ -10,21 +9,32 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 import yaml
 
+
 class TableMetadata(BaseModel):
     hidden: bool = Field(False, exclude=True)
-    columns: dict[str, str] = Field(default_factory=dict)
+    columns: dict[str, str] = {}
     model_config = {
         "extra": "allow",
     }
+
+
+class QueryMetadata(BaseModel):
+    sql: str
+    model_config = {
+        "extra": "allow",
+    }
+
 
 class DatabaseMetadata(BaseModel):
-    tables: dict[str, TableMetadata] = Field(default_factory=dict)
+    tables: dict[str, TableMetadata] = {}
+    queries: dict[str, QueryMetadata] = {}
     model_config = {
         "extra": "allow",
     }
 
+
 class RootMetadata(BaseModel):
-    databases: dict[str, DatabaseMetadata] = Field(default_factory=dict)
+    databases: dict[str, DatabaseMetadata] = {}
     model_config = {
         "extra": "allow",
     }
@@ -40,32 +50,53 @@ async def get_catalog(sqlite_connection: aiosqlite.Connection, metadata: RootMet
     ]:
         database_in_metadata = database_stem in metadata.databases
         # Rename from the stem to the true SQLite-internal name (usually "main")
-        database = DatabaseMetadata(**({key: value for key, value in metadata.databases[database_stem] if key != "tables"} if database_in_metadata else {}))
+        database = DatabaseMetadata(
+            **(
+                {key: value for key, value in metadata.databases[database_stem] if key != "tables"}
+                if database_in_metadata
+                else {}
+            )
+        )
         # Get the table names
         cursor = await sqlite_connection.execute(f"pragma {database_name}.table_list")
         for table_name in [
             table_row[1] for table_row in await cursor.fetchall() if not table_row[1].startswith("sqlite_")
         ]:
             table_in_metadata = database_in_metadata and table_name in metadata.databases[database_stem].tables
-            table = TableMetadata(**({
-                key: value
-                for key, value in metadata.databases[database_stem].tables[table_name]
-                if key != "columns"
-            } if table_in_metadata else {}))
+            table = TableMetadata(
+                **(
+                    {
+                        key: value
+                        for key, value in metadata.databases[database_stem].tables[table_name]
+                        if key != "columns"
+                    }
+                    if table_in_metadata
+                    else {}
+                )
+            )
             # Omit hidden tables
             if table.hidden:
                 continue
             # Get the column names
             cursor = await sqlite_connection.execute(f"pragma {database_name}.table_info({table_name})")
             for column_name in [column_row[1] for column_row in await cursor.fetchall()]:
-                column_in_metadata = table_in_metadata and column_name in metadata.databases[database_stem].tables[table_name].columns
-                column_description = metadata.databases[database_stem].tables[table_name].columns[column_name] if column_in_metadata else ""
+                column_in_metadata = (
+                    table_in_metadata and column_name in metadata.databases[database_stem].tables[table_name].columns
+                )
+                column_description = (
+                    metadata.databases[database_stem].tables[table_name].columns[column_name]
+                    if column_in_metadata
+                    else ""
+                )
                 table.columns[column_name] = column_description
             database.tables[table_name] = table
         catalog.databases[database_name] = database
     return catalog
 
-async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: RootMetadata = RootMetadata()) -> FastMCP:
+
+async def mcp_sqlite_server(
+    sqlite_connection: aiosqlite.Connection, metadata: RootMetadata = RootMetadata()
+) -> FastMCP:
     """Create a catalog of databases, tables, and columns that are actually in the connection, enriched with optional metadata."""
     server = FastMCP("mcp-sqlite", stateless_http=True, json_response=True)
 
@@ -88,21 +119,13 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
             rows_html += f"<tr>{row_inner_html}</tr>"
         return f"<table>{rows_html}</table>"
 
-    # initial_catalog = await get_catalog(sqlite_connection=sqlite_connection, metadata=metadata)
-    # for database in initial_catalog.databases:
-    #     if not isinstance(initial_catalog["databases"][database], dict):
-    #         continue
+    initial_catalog = await get_catalog(sqlite_connection=sqlite_connection, metadata=metadata)
+    for database in initial_catalog.databases:
+        for query_slug, query in initial_catalog.databases[database].queries.items():
 
-    #     try:
-    #         if "queries" in initial_catalog["databases"][database]:
-    #             pass
-    #     except TypeError:
-    #         pass
-    #     for query in initial_catalog["databases"][database]["queries"]:
-    #         query_slug = re.sub("[^a-z]+", "_", query["title"].lower())
-    #         @server.tool(name=f"execute_{database}_{query_slug}")
-    #         async def execute_canned_query() -> str:
-    #             await execute(sql=query["sql"])
+            @server.tool(name=f"execute_{database}_{query_slug}")
+            async def execute_canned_query() -> str:
+                return await execute(sql=query.sql)
 
     return server
 
