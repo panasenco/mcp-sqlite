@@ -185,6 +185,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "aiosqlite" },
     { name = "mcp" },
+    { name = "pydantic" },
     { name = "pyyaml" },
 ]
 
@@ -202,6 +203,7 @@ dev = [
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "mcp", specifier = ">=1.9.2" },
+    { name = "pydantic", specifier = ">=2.11.5" },
     { name = "pyyaml", specifier = ">=6.0.2" },
 ]
 

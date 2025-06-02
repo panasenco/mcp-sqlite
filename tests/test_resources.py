@@ -52,7 +52,9 @@ EXPECTED_SMALL_CATALOG = {
             "source": "Alternative source",
             "source_url": "http://example.com/",
             "queries": {
-                "answer_to_life": "select 42",
+                "answer_to_life": {
+                    "sql": "select 42",
+                }
             },
             "tables": {
                 "table1": {
@@ -84,20 +86,20 @@ EXPECTED_SMALL_CATALOG = {
 
 
 @pytest.mark.anyio
-async def test_server_small_metadata_catalog(small_metadata_server):
+async def test_server_small_metadata_catalog(small_server):
     # There should be only one resource that returns the entire catalog of the SQLite connection
-    resources = await small_metadata_server.read_resource("catalog://")
+    resources = await small_server.read_resource("catalog://")
     assert len(resources) == 1
     assert resources[0].mime_type == "application/json"
     assert json.loads(resources[0].content) == EXPECTED_SMALL_CATALOG
 
 
 @pytest.mark.anyio
-async def test_client_small_metadata_catalog(small_mcp_client_session):
+async def test_client_small_metadata_catalog(small_client_session):
     # There should be only one resource that returns the entire catalog of the SQLite connection
-    resources = await small_mcp_client_session.list_resources()
+    resources = await small_client_session.list_resources()
     assert len(resources.resources) == 1
-    resource_contents = await small_mcp_client_session.read_resource("catalog://")
+    resource_contents = await small_client_session.read_resource("catalog://")
     assert len(resource_contents.contents) == 1
     assert resource_contents.contents[0].mimeType == "application/json"
     assert json.loads(resource_contents.contents[0].text) == EXPECTED_SMALL_CATALOG

@@ -26,19 +26,19 @@ async def test_server_execute_tool_no_column_name(empty_server):
 
 
 @pytest.mark.anyio
-async def test_client_execute_tool(small_mcp_client_session):
-    tools = await small_mcp_client_session.list_tools()
+async def test_client_execute_tool(small_client_session):
+    tools = await small_client_session.list_tools()
     assert len(tools.tools) > 0
-    result = await small_mcp_client_session.call_tool("execute", {"sql": "select 'hello <world>' as s"})
+    result = await small_client_session.call_tool("execute", {"sql": "select 'hello <world>' as s"})
     assert len(result.content) == 1
     assert result.content[0].text == "<table><tr><th>s</th></tr><tr><td>hello &lt;world&gt;</td></tr></table>"
-    result = await small_mcp_client_session.call_tool("execute", {"sql": "select 42 as i"})
+    result = await small_client_session.call_tool("execute", {"sql": "select 42 as i"})
     assert len(result.content) == 1
     assert result.content[0].text == "<table><tr><th>i</th></tr><tr><td>42</td></tr></table>"
-    result = await small_mcp_client_session.call_tool("execute", {"sql": "select 42"})
+    result = await small_client_session.call_tool("execute", {"sql": "select 42"})
     assert len(result.content) == 1
     assert result.content[0].text == "<table><tr><th>42</th></tr><tr><td>42</td></tr></table>"
-    result = await small_mcp_client_session.call_tool("execute", {"sql": "select * from table1"})
+    result = await small_client_session.call_tool("execute", {"sql": "select * from table1"})
     assert len(result.content) == 1
     assert (
         result.content[0].text
@@ -59,3 +59,13 @@ async def test_client_execute_tool(small_mcp_client_session):
         </table>
         """.replace(" ", "").replace("\n", "")
     )
+
+
+@pytest.mark.anyio
+async def test_simple_canned_query(canned_queries_client_session):
+    tools = await canned_queries_client_session.list_tools()
+    assert len(tools.tools) > 1
+    assert "execute_main_answer_to_life" in tools.tools
+    result = await canned_queries_client_session.call_tool("execute_main_answer_to_life", {})
+    assert len(result.content) == 1
+    assert result.content[0].text == "<table><tr><th>42</th></tr><tr><td>42</td></tr></table>"

@@ -36,7 +36,7 @@ async def minimal_server():
 @pytest.fixture
 async def small_sqlite_file():
     async with aiofiles.tempfile.NamedTemporaryFile(
-        "w", prefix="mcp_sqlite_test_", suffix=".db", delete_on_close=False
+        "w", prefix="mcp_sqlite_test_small_", suffix=".db", delete_on_close=False
     ) as db_file:
         await db_file.close()
         async with aiosqlite.connect(f"file:{db_file.name}", uri=True) as sqlite_connection:
@@ -57,7 +57,7 @@ async def small_sqlite_file():
 @pytest.fixture
 def small_metadata_file(small_sqlite_file):
     with tempfile.NamedTemporaryFile(
-        "w", prefix="mcp_sqlite_test_", suffix=".yml", delete_on_close=False
+        "w", prefix="mcp_sqlite_test_small_", suffix=".yml", delete_on_close=False
     ) as metadata_file:
         yaml.dump(
             {
@@ -69,7 +69,9 @@ def small_metadata_file(small_sqlite_file):
                         "source": "Alternative source",
                         "source_url": "http://example.com/",
                         "queries": {
-                            "answer_to_life": "select 42",
+                            "answer_to_life": {
+                                "sql": "select 42",
+                            }
                         },
                         "tables": {
                             "table2": {
@@ -116,7 +118,7 @@ def small_metadata_file(small_sqlite_file):
 
 
 @pytest.fixture
-async def small_metadata_server(small_sqlite_file, small_metadata_file):
+async def small_server(small_sqlite_file, small_metadata_file):
     async with aiofiles.open(small_metadata_file, mode="r") as metadata_file_descriptor:
         metadata = yaml.safe_load(await metadata_file_descriptor.read())
     async with aiosqlite.connect(f"file:{small_sqlite_file}", uri=True) as sqlite_connection:
@@ -124,7 +126,7 @@ async def small_metadata_server(small_sqlite_file, small_metadata_file):
 
 
 @pytest.fixture
-async def small_mcp_client_session(small_sqlite_file, small_metadata_file):
+async def small_client_session(small_sqlite_file, small_metadata_file):
     async with stdio_client(
         StdioServerParameters(
             command="uv",
@@ -136,6 +138,54 @@ async def small_mcp_client_session(small_sqlite_file, small_metadata_file):
                 small_sqlite_file,
                 "--meta",
                 small_metadata_file,
+            ],
+        )
+    ) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            yield session
+
+
+@pytest.fixture
+def canned_queries_metadata_file(small_sqlite_file):
+    with tempfile.NamedTemporaryFile(
+        "w", prefix="mcp_sqlite_test_canned_queries_", suffix=".yml", delete_on_close=False
+    ) as metadata_file:
+        yaml.dump(
+            {
+                "databases": {
+                    Path(small_sqlite_file).stem: {
+                        "queries": {
+                            "answer_to_life": {
+                                "title": "Answer to life",
+                                "sql": "select 42",
+                            }
+                        },
+                    }
+                },
+            },
+            metadata_file,
+            sort_keys=False,
+        )
+        metadata_file.close()
+        yield metadata_file.name
+        # Give time to the MCP server to exit before deleting the SQLite file
+        time.sleep(1)
+
+
+@pytest.fixture
+async def canned_queries_client_session(small_sqlite_file, canned_queries_metadata_file):
+    async with stdio_client(
+        StdioServerParameters(
+            command="uv",
+            args=[
+                "--directory",
+                str(Path(__file__).parent.parent),
+                "run",
+                "mcp_sqlite/server.py",
+                small_sqlite_file,
+                "--meta",
+                canned_queries_metadata_file,
             ],
         )
     ) as (read, write):
