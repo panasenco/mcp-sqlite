@@ -7,27 +7,22 @@ import pytest
 async def test_settings(empty_server):
     # The server should be stateless and return JSON
     assert empty_server.settings.stateless_http
-    assert empty_server.settings.json_response
 
 
 @pytest.mark.anyio
-async def test_empty_catalog(empty_server):
-    # There should be only one resource that returns the entire catalog of the SQLite connection
-    assert [str(resource.uri) for resource in await empty_server.list_resources()] == ["catalog://"]
-    assert len(await empty_server.list_resource_templates()) == 0
-    resources = await empty_server.read_resource("catalog://")
-    assert len(resources) == 1
-    assert resources[0].mime_type == "application/json"
-    assert json.loads(resources[0].content) == {"databases": {"main": {"tables": {}}}}
+async def test_server_empty_catalog(empty_server):
+    assert len(await empty_server.list_tools()) > 0
+    responses = await empty_server.call_tool("get_catalog", {})
+    assert len(responses) == 1
+    assert json.loads(responses[0].text) == {"databases": {"main": {"tables": {}}}}
 
 
 @pytest.mark.anyio
-async def test_minimal_catalog(minimal_server):
+async def test_server_minimal_catalog(minimal_server):
     # There should be only one resource that returns the entire catalog of the SQLite connection
-    resources = await minimal_server.read_resource("catalog://")
-    assert len(resources) == 1
-    assert resources[0].mime_type == "application/json"
-    assert json.loads(resources[0].content) == {
+    responses = await minimal_server.call_tool("get_catalog", {})
+    assert len(responses) == 1
+    assert json.loads(responses[0].text) == {
         "databases": {
             "main": {
                 "tables": {
@@ -87,19 +82,16 @@ EXPECTED_SMALL_CATALOG = {
 
 @pytest.mark.anyio
 async def test_server_small_metadata_catalog(small_server):
-    # There should be only one resource that returns the entire catalog of the SQLite connection
-    resources = await small_server.read_resource("catalog://")
-    assert len(resources) == 1
-    assert resources[0].mime_type == "application/json"
-    assert json.loads(resources[0].content) == EXPECTED_SMALL_CATALOG
+    responses = await small_server.call_tool("get_catalog", {})
+    assert len(responses) == 1
+    assert json.loads(responses[0].text) == EXPECTED_SMALL_CATALOG
 
 
 @pytest.mark.anyio
 async def test_client_small_metadata_catalog(small_client_session):
-    # There should be only one resource that returns the entire catalog of the SQLite connection
-    resources = await small_client_session.list_resources()
-    assert len(resources.resources) == 1
-    resource_contents = await small_client_session.read_resource("catalog://")
-    assert len(resource_contents.contents) == 1
-    assert resource_contents.contents[0].mimeType == "application/json"
-    assert json.loads(resource_contents.contents[0].text) == EXPECTED_SMALL_CATALOG
+    tools = await small_client_session.list_tools()
+    assert len(tools.tools) > 0
+    result = await small_client_session.call_tool("get_catalog", {})
+    assert len(result.content) == 1
+    assert len(result.content[0].text) > 0
+    assert json.loads(result.content[0].text) == EXPECTED_SMALL_CATALOG

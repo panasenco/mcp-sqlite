@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.21.0",
+    "anyio>=4.9.0",
     "mcp>=1.9.2",
     "pydantic>=2.11.5",
     "pyyaml>=6.0.2",
@@ -14,8 +15,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "aiofiles>=24.1.0",
-    "anyio>=4.9.0",
-    "mcp[cli]>=1.9.2",
     "pyright>=1.1.401",
     "pytest>=8.3.5",
     "ruff>=0.11.12",

@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 import yaml
 
 class TableMetadata(BaseModel):
-    hidden: bool = False
+    hidden: bool = Field(False, exclude=True)
     columns: dict[str, str] = Field(default_factory=dict)
     model_config = {
         "extra": "allow",
@@ -69,9 +69,10 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
     """Create a catalog of databases, tables, and columns that are actually in the connection, enriched with optional metadata."""
     server = FastMCP("mcp-sqlite", stateless_http=True, json_response=True)
 
-    @server.resource("catalog://", mime_type="application/json")
-    async def catalog() -> RootMetadata:
-        return await get_catalog(sqlite_connection=sqlite_connection, metadata=metadata)
+    @server.tool(name="get_catalog")
+    async def _get_catalog() -> str:
+        catalog = await get_catalog(sqlite_connection=sqlite_connection, metadata=metadata)
+        return catalog.model_dump_json()
 
     @server.tool()
     async def execute(sql: str) -> str:

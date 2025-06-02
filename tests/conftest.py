@@ -11,7 +11,7 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 import yaml
 import pytest
 
-from mcp_sqlite.server import mcp_sqlite_server
+from mcp_sqlite.server import mcp_sqlite_server, RootMetadata
 
 
 @pytest.fixture
@@ -120,9 +120,9 @@ def small_metadata_file(small_sqlite_file):
 @pytest.fixture
 async def small_server(small_sqlite_file, small_metadata_file):
     async with aiofiles.open(small_metadata_file, mode="r") as metadata_file_descriptor:
-        metadata = yaml.safe_load(await metadata_file_descriptor.read())
+        metadata_dict = yaml.safe_load(await metadata_file_descriptor.read())
     async with aiosqlite.connect(f"file:{small_sqlite_file}", uri=True) as sqlite_connection:
-        yield await mcp_sqlite_server(sqlite_connection, metadata)
+        yield await mcp_sqlite_server(sqlite_connection, RootMetadata(**metadata_dict))
 
 
 @pytest.fixture
