@@ -6,6 +6,7 @@ from pathlib import Path
 import aiosqlite
 import anyio
 from mcp.server.fastmcp import FastMCP
+import yaml
 
 
 async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: dict = {}) -> FastMCP:
@@ -82,8 +83,13 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: d
 
 
 async def main(sqlite_file: str, metadata_yaml_file: str | None = None):
+    if metadata_yaml_file:
+        with open(metadata_yaml_file, "r") as metadata_file_descriptor:
+            metadata = yaml.safe_load(metadata_file_descriptor.read())
+    else:
+        metadata = {}
     async with aiosqlite.connect(f"file:{sqlite_file}", uri=True) as sqlite_connection:
-        server = await mcp_sqlite_server(sqlite_connection=sqlite_connection)
+        server = await mcp_sqlite_server(sqlite_connection=sqlite_connection, metadata=metadata)
         await server.run_stdio_async()
 
 

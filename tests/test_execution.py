@@ -10,11 +10,13 @@ async def test_execute_tool_hello_world(empty_server):
     assert len(results) == 1
     assert results[0].text == "<table><tr><th>s</th></tr><tr><td>hello &lt;world&gt;</td></tr></table>"
 
+
 @pytest.mark.anyio
 async def test_execute_tool_non_string(empty_server):
     results = await empty_server.call_tool("execute", {"sql": "select 42 as i"})
     assert len(results) == 1
     assert results[0].text == "<table><tr><th>i</th></tr><tr><td>42</td></tr></table>"
+
 
 @pytest.mark.anyio
 async def test_execute_tool_no_column_name(empty_server):

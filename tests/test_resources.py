@@ -43,47 +43,61 @@ async def test_minimal_catalog(minimal_server):
     }
 
 
-@pytest.mark.anyio
-async def test_small_metadata_catalog(small_metadata_server):
-    # There should be only one resource that returns the entire catalog of the SQLite connection
-    resources = await small_metadata_server.read_resource("catalog://")
-    assert len(resources) == 1
-    assert resources[0].mime_type == "application/json"
-    assert json.loads(resources[0].content) == {
-        "title": "Index title",
-        "license": "ODbL",
-        "source_url": "http://example.com/",
-        "databases": {
-            "main": {
-                "source": "Alternative source",
-                "source_url": "http://example.com/",
-                "queries": {
-                    "answer_to_life": "select 42",
-                },
-                "tables": {
-                    "table1": {
-                        "description_html": "Custom <em>table</em> description",
-                        "license": "CC BY 3.0 US",
-                        "license_url": "https://creativecommons.org/licenses/by/3.0/us/",
-                        "columns": {
-                            "col1": "Description of column 1",
-                            "col2": "Description of column 2",
-                        },
-                        "units": {
-                            "col1": "metres",
-                            "col2": "Hz",
-                        },
-                        "size": 10,
-                        "sortable_columns": [
-                            "col2",
-                        ],
+EXPECTED_SMALL_CATALOG = {
+    "title": "Index title",
+    "license": "ODbL",
+    "source_url": "http://example.com/",
+    "databases": {
+        "main": {
+            "source": "Alternative source",
+            "source_url": "http://example.com/",
+            "queries": {
+                "answer_to_life": "select 42",
+            },
+            "tables": {
+                "table1": {
+                    "description_html": "Custom <em>table</em> description",
+                    "license": "CC BY 3.0 US",
+                    "license_url": "https://creativecommons.org/licenses/by/3.0/us/",
+                    "columns": {
+                        "col1": "Description of column 1",
+                        "col2": "Description of column 2",
                     },
-                    "table4": {
-                        "columns": {
-                            "col4": "",
-                        },
+                    "units": {
+                        "col1": "metres",
+                        "col2": "Hz",
+                    },
+                    "size": 10,
+                    "sortable_columns": [
+                        "col2",
+                    ],
+                },
+                "table4": {
+                    "columns": {
+                        "col4": "",
                     },
                 },
             },
         },
-    }
+    },
+}
+
+
+@pytest.mark.anyio
+async def test_server_small_metadata_catalog(small_metadata_server):
+    # There should be only one resource that returns the entire catalog of the SQLite connection
+    resources = await small_metadata_server.read_resource("catalog://")
+    assert len(resources) == 1
+    assert resources[0].mime_type == "application/json"
+    assert json.loads(resources[0].content) == EXPECTED_SMALL_CATALOG
+
+
+@pytest.mark.anyio
+async def test_client_small_metadata_catalog(small_mcp_client_session):
+    # There should be only one resource that returns the entire catalog of the SQLite connection
+    resources = await small_mcp_client_session.list_resources()
+    assert len(resources.resources) == 1
+    resource_contents = await small_mcp_client_session.read_resource("catalog://")
+    assert len(resource_contents.contents) == 1
+    assert resource_contents.contents[0].mimeType == "application/json"
+    assert json.loads(resource_contents.contents[0].text) == EXPECTED_SMALL_CATALOG

@@ -1,11 +1,14 @@
 import logging
 from pathlib import Path
+import tempfile
+import time
 
 import aiofiles
 import aiosqlite
 import asyncio
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
+import yaml
 import pytest
 
 from mcp_sqlite.server import mcp_sqlite_server
@@ -52,10 +55,11 @@ async def small_sqlite_file():
 
 
 @pytest.fixture
-async def small_metadata_server(small_sqlite_file):
-    async with aiosqlite.connect(f"file:{small_sqlite_file}", uri=True) as sqlite_connection:
-        yield await mcp_sqlite_server(
-            sqlite_connection,
+def small_metadata_file(small_sqlite_file):
+    with tempfile.NamedTemporaryFile(
+        "w", prefix="mcp_sqlite_test_", suffix=".yml", delete_on_close=False
+    ) as metadata_file:
+        yaml.dump(
             {
                 "title": "Index title",
                 "license": "ODbL",
@@ -102,15 +106,37 @@ async def small_metadata_server(small_sqlite_file):
                     }
                 },
             },
+            metadata_file,
+            sort_keys=False,
         )
+        metadata_file.close()
+        yield metadata_file.name
+        # Give time to the MCP server to exit before deleting the SQLite file
+        time.sleep(1)
 
 
 @pytest.fixture
-async def mcp_client_session(small_sqlite_file):
+async def small_metadata_server(small_sqlite_file, small_metadata_file):
+    async with aiofiles.open(small_metadata_file, mode="r") as metadata_file_descriptor:
+        metadata = yaml.safe_load(await metadata_file_descriptor.read())
+    async with aiosqlite.connect(f"file:{small_sqlite_file}", uri=True) as sqlite_connection:
+        yield await mcp_sqlite_server(sqlite_connection, metadata)
+
+
+@pytest.fixture
+async def small_mcp_client_session(small_sqlite_file, small_metadata_file):
     async with stdio_client(
         StdioServerParameters(
             command="uv",
-            args=["--directory", str(Path(__file__).parent.parent), "run", "mcp_sqlite/server.py", small_sqlite_file],
+            args=[
+                "--directory",
+                str(Path(__file__).parent.parent),
+                "run",
+                "mcp_sqlite/server.py",
+                small_sqlite_file,
+                "--meta",
+                small_metadata_file,
+            ],
         )
     ) as (read, write):
         async with ClientSession(read, write) as session:
