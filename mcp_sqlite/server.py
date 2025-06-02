@@ -1,5 +1,5 @@
 import argparse
-import asyncio
+import html
 import logging
 from pathlib import Path
 
@@ -63,6 +63,20 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: d
                         column_description
                     )
         return catalog
+
+    @server.tool()
+    async def execute(sql: str) -> str:
+        cursor = await sqlite_connection.execute(sql)
+        header_inner_html = ""
+        for column_description in cursor.description:
+            header_inner_html += f"<th>{html.escape(column_description[0])}</th>"
+        rows_html = f"<tr>{header_inner_html}</tr>"
+        for row in await cursor.fetchall():
+            row_inner_html = ""
+            for value in row:
+                row_inner_html += f"<td>{html.escape(str(value))}</td>"
+            rows_html += f"<tr>{row_inner_html}</tr>"
+        return f"<table>{rows_html}</table>"
 
     return server
 
