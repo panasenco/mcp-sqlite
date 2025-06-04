@@ -1,6 +1,6 @@
 [project]
 name = "mcp-sqlite"
-version = "0.1.1rc1"
+version = "0.1.1"
 description = "Making local data equally accessible to AI agents and humans. Datasette-compatible!"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,9 +17,8 @@ mcp-sqlite = "mcp_sqlite.server:main_cli"
 
 [project.urls]
 Homepage = "https://github.com/panasenco/mcp-sqlite"
-Documentation = "https://github.com/panasenco/mcp-sqlite"
-Repository = "https://github.com/panasenco/mcp-sqlite.git"
 Issues = "https://github.com/panasenco/mcp-sqlite/issues"
+Repository = "https://github.com/panasenco/mcp-sqlite.git"
 
 [dependency-groups]
 dev = [
