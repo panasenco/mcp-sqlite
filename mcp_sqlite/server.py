@@ -184,7 +184,7 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
     return server
 
 
-async def main(sqlite_file: str, metadata_yaml_file: str | None = None, write: bool = False):
+async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None, write: bool = False):
     if metadata_yaml_file:
         with open(metadata_yaml_file, "r") as metadata_file_descriptor:
             metadata_dict = yaml.safe_load(metadata_file_descriptor.read())
@@ -197,7 +197,7 @@ async def main(sqlite_file: str, metadata_yaml_file: str | None = None, write: b
             await server.run(read_stream, write_stream, options)
 
 
-if __name__ == "__main__":
+def main_cli():
     parser = argparse.ArgumentParser(
         prog="mcp-sqlite-server",
         description="CLI command to start an MCP server for interacting with SQLite data.",
@@ -227,4 +227,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     LOGGING_LEVELS = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=LOGGING_LEVELS[min(args.verbose, len(LOGGING_LEVELS) - 1)])  # cap to last level index
-    anyio.run(main, args.sqlite_file, args.metadata, args.write)
+    anyio.run(run_server, args.sqlite_file, args.metadata, args.write)
+
+if __name__ == "__main__":
+    main_cli()

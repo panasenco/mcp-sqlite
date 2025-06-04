@@ -1,6 +1,6 @@
 [project]
 name = "mcp-sqlite"
-version = "0.1.0-rc.1"
+version = "0.1.0rc2"
 description = "Making local data equally accessible to AI agents and humans. Datasette-compatible!"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -11,6 +11,9 @@ dependencies = [
     "pydantic>=2.11.5",
     "pyyaml>=6.0.2",
 ]
+
+[project.scripts]
+mcp-sqlite = "mcp_sqlite.server:main_cli"
 
 [dependency-groups]
 dev = [
