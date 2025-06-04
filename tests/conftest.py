@@ -1,7 +1,5 @@
-import logging
 from pathlib import Path
 import tempfile
-import time
 
 import aiofiles
 import aiosqlite
@@ -11,136 +9,160 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 import yaml
 import pytest
 
-from mcp_sqlite.server import mcp_sqlite_server, RootMetadata
 
-
-@pytest.fixture
+@pytest.fixture(scope="session")
 def anyio_backend():
     return "asyncio"
 
 
-@pytest.fixture
-async def empty_server():
-    async with aiosqlite.connect("file::memory:", uri=True) as sqlite_connection:
-        yield await mcp_sqlite_server(sqlite_connection)
-
-
-@pytest.fixture
-async def minimal_server():
-    async with aiosqlite.connect("file::memory:", uri=True) as sqlite_connection:
-        await sqlite_connection.execute("create table table1 (col1, col2)")
-        await sqlite_connection.commit()
-        yield await mcp_sqlite_server(sqlite_connection)
-
-
-@pytest.fixture
-async def small_sqlite_file():
+async def session_generator(statements, metadata):
+    # Create the SQLite database file
     async with aiofiles.tempfile.NamedTemporaryFile(
         "w", prefix="mcp_sqlite_test_small_", suffix=".db", delete_on_close=False
     ) as db_file:
         await db_file.close()
         async with aiosqlite.connect(f"file:{db_file.name}", uri=True) as sqlite_connection:
-            await sqlite_connection.execute("create table table1 (col1 primary key, col2)")
-            await sqlite_connection.execute("insert into table1 values (3, 'x')")
-            await sqlite_connection.execute("insert into table1 values (4, 'y')")
-            await sqlite_connection.execute("create table table2 (col3)")
-            await sqlite_connection.execute("insert into table2 values (false)")
-            await sqlite_connection.execute("create table table4 (col4)")
-            await sqlite_connection.execute("insert into table4 values (5)")
+            for statement in statements:
+                await sqlite_connection.execute(statement)
             await sqlite_connection.commit()
-        logging.debug(f"small_sqlite_file: {db_file.name}")
-        yield db_file.name
-        # Give time to the MCP server to exit before deleting the SQLite file
-        await asyncio.sleep(1)
+        # Create the metadata YAML file
+        with tempfile.NamedTemporaryFile(
+            "w", prefix="mcp_sqlite_test_small_", suffix=".yml", delete_on_close=False
+        ) as metadata_file:
+            # Replace the database name with the actual one
+            if "databases" in metadata:
+                if "_" in metadata["databases"]:
+                    metadata["databases"][Path(str(db_file.name)).stem] = metadata["databases"].pop("_")
+            yaml.dump(metadata, metadata_file, sort_keys=False)
+            metadata_file.close()
+            # Create a stdio-connected client
+            async with stdio_client(
+                StdioServerParameters(
+                    command="uv",
+                    args=[
+                        "--directory",
+                        str(Path(__file__).parent.parent),
+                        "run",
+                        "mcp_sqlite/server.py",
+                        str(db_file.name),
+                        "--metadata",
+                        metadata_file.name,
+                    ],
+                )
+            ) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    yield session
+            # Give time to the MCP server to exit before deleting the files
+            await asyncio.sleep(1)
 
 
-@pytest.fixture
-def small_metadata_file(small_sqlite_file):
-    with tempfile.NamedTemporaryFile(
-        "w", prefix="mcp_sqlite_test_small_", suffix=".yml", delete_on_close=False
-    ) as metadata_file:
-        yaml.dump(
-            {
-                "title": "Index title",
-                "license": "ODbL",
-                "source_url": "http://example.com/",
-                "databases": {
-                    Path(small_sqlite_file).stem: {
-                        "source": "Alternative source",
-                        "source_url": "http://example.com/",
-                        "queries": {
-                            "answer_to_life": {
-                                "sql": "select 42",
-                            }
+@pytest.fixture(scope="session")
+async def empty_session():
+    async for session in session_generator([], {}):
+        yield session
+
+
+@pytest.fixture(scope="session")
+async def minimal_session():
+    async for session in session_generator(
+        [
+            "create table table1 (col1, col2)",
+        ],
+        {},
+    ):
+        yield session
+
+
+@pytest.fixture(scope="session")
+async def small_session():
+    async for session in session_generator(
+        [
+            "create table table1 (col1 primary key, col2)",
+            "insert into table1 values (3, 'x')",
+            "insert into table1 values (4, 'y')",
+            "create table table2 (col3)",
+            "insert into table2 values (false)",
+            "create table table4 (col4)",
+            "insert into table4 values (5)",
+        ],
+        {
+            "title": "Index title",
+            "license": "ODbL",
+            "source_url": "http://example.com/",
+            "databases": {
+                "_": {
+                    "source": "Alternative source",
+                    "source_url": "http://example.com/",
+                    "queries": {
+                        "answer_to_life": {
+                            "sql": "select 42",
+                        }
+                    },
+                    "tables": {
+                        "table2": {
+                            "description": "Exists in the data, but will be hidden",
+                            "sort": "col3",
+                            "label_column": "col3",
+                            "columns": {
+                                "col3": "Third column",
+                            },
+                            "hidden": True,
                         },
-                        "tables": {
-                            "table2": {
-                                "description": "Exists in the data, but will be hidden",
-                                "sort": "col3",
-                                "label_column": "col3",
-                                "columns": {
-                                    "col3": "Third column",
-                                },
-                                "hidden": True,
+                        "table1": {
+                            "description_html": "Custom <em>table</em> description",
+                            "license": "CC BY 3.0 US",
+                            "license_url": "https://creativecommons.org/licenses/by/3.0/us/",
+                            "columns": {
+                                "col1": "Description of column 1",
+                                "col2": "Description of column 2",
+                                "nonexistent": "This column does not exist in the data",
                             },
-                            "table1": {
-                                "description_html": "Custom <em>table</em> description",
-                                "license": "CC BY 3.0 US",
-                                "license_url": "https://creativecommons.org/licenses/by/3.0/us/",
-                                "columns": {
-                                    "col1": "Description of column 1",
-                                    "col2": "Description of column 2",
-                                    "nonexistent": "This column does not exist in the data",
-                                },
-                                "units": {
-                                    "col1": "metres",
-                                    "col2": "Hz",
-                                },
-                                "size": 10,
-                                "sortable_columns": [
-                                    "col2",
-                                ],
+                            "units": {
+                                "col1": "metres",
+                                "col2": "Hz",
                             },
-                            "table3": {
-                                "description": "Does not exist in the data",
-                            },
+                            "size": 10,
+                            "sortable_columns": [
+                                "col2",
+                            ],
                         },
-                    }
-                },
+                        "table3": {
+                            "description": "Does not exist in the data",
+                        },
+                    },
+                }
             },
-            metadata_file,
-            sort_keys=False,
-        )
-        metadata_file.close()
-        yield metadata_file.name
-        # Give time to the MCP server to exit before deleting the SQLite file
-        time.sleep(1)
+        },
+    ):
+        yield session
 
 
-@pytest.fixture
-async def small_server(small_sqlite_file, small_metadata_file):
-    async with aiofiles.open(small_metadata_file, mode="r") as metadata_file_descriptor:
-        metadata_dict = yaml.safe_load(await metadata_file_descriptor.read())
-    async with aiosqlite.connect(f"file:{small_sqlite_file}", uri=True) as sqlite_connection:
-        yield await mcp_sqlite_server(sqlite_connection, RootMetadata(**metadata_dict))
-
-
-@pytest.fixture
-async def small_client_session(small_sqlite_file, small_metadata_file):
-    async with stdio_client(
-        StdioServerParameters(
-            command="uv",
-            args=[
-                "--directory",
-                str(Path(__file__).parent.parent),
-                "run",
-                "mcp_sqlite/server.py",
-                small_sqlite_file,
-                "--meta",
-                small_metadata_file,
-            ],
-        )
-    ) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            yield session
+@pytest.fixture(scope="session")
+async def canned_session():
+    async for session in session_generator(
+        [
+            "create table table1 (col1 primary key, col2)",
+            "insert into table1 values (3, 'x')",
+            "insert into table1 values (4, 'y')",
+            "create table table2 (col3)",
+            "insert into table2 values (false)",
+            "create table table4 (col4)",
+            "insert into table4 values (5)",
+        ],
+        {
+            "databases": {
+                "_": {
+                    "queries": {
+                        "answer_to_life": {
+                            "sql": "select 42",
+                        },
+                        "add_integers": {
+                            "sql": "select :a + :b as total",
+                        },
+                    },
+                }
+            },
+        },
+    ):
+        yield session

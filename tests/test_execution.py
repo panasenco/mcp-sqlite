@@ -2,43 +2,34 @@ import pytest
 
 
 @pytest.mark.anyio
-async def test_server_execute_tool_hello_world(empty_server):
+async def test_execute_hello_world(empty_session):
     """Expecting tabular data in HTML format as it performs best according to Siu et al
     https://arxiv.org/pdf/2305.13062
     """
-    results = await empty_server.call_tool("execute", {"sql": "select 'hello <world>' as s"})
-    assert len(results) == 1
-    assert results[0].text == "<table><tr><th>s</th></tr><tr><td>hello &lt;world&gt;</td></tr></table>"
-
-
-@pytest.mark.anyio
-async def test_server_execute_tool_non_string(empty_server):
-    results = await empty_server.call_tool("execute", {"sql": "select 42 as i"})
-    assert len(results) == 1
-    assert results[0].text == "<table><tr><th>i</th></tr><tr><td>42</td></tr></table>"
-
-
-@pytest.mark.anyio
-async def test_server_execute_tool_no_column_name(empty_server):
-    results = await empty_server.call_tool("execute", {"sql": "select 42"})
-    assert len(results) == 1
-    assert results[0].text == "<table><tr><th>42</th></tr><tr><td>42</td></tr></table>"
-
-
-@pytest.mark.anyio
-async def test_client_execute_tool(small_client_session):
-    tools = await small_client_session.list_tools()
+    tools = await empty_session.list_tools()
     assert len(tools.tools) > 0
-    result = await small_client_session.call_tool("execute", {"sql": "select 'hello <world>' as s"})
+    result = await empty_session.call_tool("sqlite_execute", {"sql": "select 'hello <world>' as s"})
     assert len(result.content) == 1
     assert result.content[0].text == "<table><tr><th>s</th></tr><tr><td>hello &lt;world&gt;</td></tr></table>"
-    result = await small_client_session.call_tool("execute", {"sql": "select 42 as i"})
+
+
+@pytest.mark.anyio
+async def test_execute_non_string(empty_session):
+    result = await empty_session.call_tool("sqlite_execute", {"sql": "select 42 as i"})
     assert len(result.content) == 1
     assert result.content[0].text == "<table><tr><th>i</th></tr><tr><td>42</td></tr></table>"
-    result = await small_client_session.call_tool("execute", {"sql": "select 42"})
+
+
+@pytest.mark.anyio
+async def test_execute_no_column_name(empty_session):
+    result = await empty_session.call_tool("sqlite_execute", {"sql": "select 42"})
     assert len(result.content) == 1
     assert result.content[0].text == "<table><tr><th>42</th></tr><tr><td>42</td></tr></table>"
-    result = await small_client_session.call_tool("execute", {"sql": "select * from table1"})
+
+
+@pytest.mark.anyio
+async def test_execute_table(small_session):
+    result = await small_session.call_tool("sqlite_execute", {"sql": "select * from table1"})
     assert len(result.content) == 1
     assert (
         result.content[0].text
