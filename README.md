@@ -22,6 +22,8 @@ Provide useful data to AI agents without giving them access to external systems.
     }
     ```
 
+Your AI agent should now be able to use mcp-sqlite tools like `sqlite_get_catalog` and `sqlite_execute`!
+
 ### Exploring with MCP Inspector
 Use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) dashboard to interact with the SQLite database the same way that an AI agent would:
 1.  Install [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
@@ -110,4 +112,5 @@ Compatibility with Datasette allows both humans and AI to interact with the same
 Tagging a commit with a release candidate tag (containing `rc`) will trigger build and upload to TestPyPi.
 Tagging a commit with a non-release candidate tag (not containing `rc`) will trigger build and upload to PyPi.
 Note that Python package version numbers are NOT SemVer! See [Python packaging versioning](https://packaging.python.org/en/latest/discussions/versioning/).
-To test that the package works on TestPyPi, use: `uvx --default-index https://test.pypi.org/simple/ --index https://pypi.org/simple/ mcp-sqlite@0.1.0rc2 --help`.
+To test that the package works on TestPyPi, use: `uvx --default-index https://test.pypi.org/simple/ --index https://pypi.org/simple/ mcp-sqlite@0.1.0rc2 --help` (replacing `0.1.0rc2` with your own version number).
+Similarly, to test the TestPyPi package with MCP inspector, use: `npx @modelcontextprotocol/inspector uvx --default-index https://test.pypi.org/simple/ --index https://pypi.org/simple/ mcp-sqlite@0.1.0rc2 test.db --metadata test.yml`.

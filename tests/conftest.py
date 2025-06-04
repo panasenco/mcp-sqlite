@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import tempfile
 
@@ -15,25 +16,29 @@ def anyio_backend():
     return "asyncio"
 
 
-async def session_generator(statements, metadata, write=False):
+async def session_generator(statements, metadata, metadata_yaml=True, db_write=False):
     # Create the SQLite database file
     async with aiofiles.tempfile.NamedTemporaryFile(
-        "w", prefix="mcp_sqlite_test_small_", suffix=".db", delete_on_close=False
+        "w", prefix="mcp_sqlite_test_", suffix=".db", delete_on_close=False
     ) as db_file:
         await db_file.close()
         async with aiosqlite.connect(f"file:{db_file.name}", uri=True) as sqlite_connection:
             for statement in statements:
                 await sqlite_connection.execute(statement)
             await sqlite_connection.commit()
-        # Create the metadata YAML file
+        # Create the metadata file
+        metadata_suffix = ".yml" if metadata_yaml else ".json"
         with tempfile.NamedTemporaryFile(
-            "w", prefix="mcp_sqlite_test_small_", suffix=".yml", delete_on_close=False
+            "w", prefix="mcp_sqlite_test_", suffix=metadata_suffix, delete_on_close=False
         ) as metadata_file:
             # Replace the database name with the actual one
             if "databases" in metadata:
                 if "_" in metadata["databases"]:
                     metadata["databases"][Path(str(db_file.name)).stem] = metadata["databases"].pop("_")
-            yaml.dump(metadata, metadata_file, sort_keys=False)
+            if metadata_yaml:
+                yaml.dump(metadata, metadata_file, sort_keys=False)
+            else:
+                json.dump(metadata, metadata_file)
             metadata_file.close()
             # Create a stdio-connected client
             args = [
@@ -45,7 +50,7 @@ async def session_generator(statements, metadata, write=False):
                 "--metadata",
                 metadata_file.name,
             ]
-            if write:
+            if db_write:
                 args.append("--write")
             async with stdio_client(
                 StdioServerParameters(
@@ -68,7 +73,7 @@ async def empty_session():
 
 @pytest.fixture(scope="session")
 async def empty_session_write_allowed():
-    async for session in session_generator([], {}, write=True):
+    async for session in session_generator([], {}, db_write=True):
         yield session
 
 
@@ -83,8 +88,8 @@ async def minimal_session():
         yield session
 
 
-@pytest.fixture(scope="session")
-async def small_session():
+@pytest.fixture(scope="session", params=[True, False])
+async def small_session(request):
     async for session in session_generator(
         [
             "create table table1 (col1 primary key, col2)",
@@ -143,6 +148,7 @@ async def small_session():
                 }
             },
         },
+        metadata_yaml=request.param,
     ):
         yield session
 
@@ -159,19 +165,19 @@ async def canned_session():
             "create table table4 (col4)",
             "insert into table4 values (5)",
         ],
-            {
-                "databases": {
-                    "_": {
-                        "queries": {
-                            "answer_to_life": {
-                                "sql": "select 42",
-                            },
-                            "add_integers": {
-                                "sql": "select :a + :b as total",
-                            },
+        {
+            "databases": {
+                "_": {
+                    "queries": {
+                        "answer_to_life": {
+                            "sql": "select 42",
                         },
-                    }
-                },
+                        "add_integers": {
+                            "sql": "select :a + :b as total",
+                        },
+                    },
+                }
             },
-        ):
-            yield session
+        },
+    ):
+        yield session

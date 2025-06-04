@@ -215,7 +215,7 @@ def main_cli():
         "-w",
         "--write",
         help="Set this flag to allow the AI agent to write to the database. By default the database is opened in read-only mode.",
-        action="store_true"
+        action="store_true",
     )
     parser.add_argument(
         "-v",
@@ -228,6 +228,7 @@ def main_cli():
     LOGGING_LEVELS = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=LOGGING_LEVELS[min(args.verbose, len(LOGGING_LEVELS) - 1)])  # cap to last level index
     anyio.run(run_server, args.sqlite_file, args.metadata, args.write)
+
 
 if __name__ == "__main__":
     main_cli()
