@@ -12,7 +12,7 @@ import yaml
 async def test_canned_query_answer_to_life(canned_session):
     tools = await canned_session.list_tools()
     assert len(tools.tools) > 1
-    assert "execute_main_answer_to_life" in [tool.name for tool in tools.tools]
+    assert "sqlite_execute_main_answer_to_life" in [tool.name for tool in tools.tools]
     result = await canned_session.call_tool("sqlite_execute_main_answer_to_life", {})
     assert len(result.content) == 1
     assert result.content[0].text == "<table><tr><th>42</th></tr><tr><td>42</td></tr></table>"
