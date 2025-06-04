@@ -48,7 +48,7 @@ uvx datasette serve path/to/data.db --metadata path/to/metadata.yml
 
 ### Command-line options
 ```
-usage: mcp-sqlite-server [-h] [-m METADATA] [-w] [-v] sqlite_file
+usage: mcp-sqlite [-h] [-m METADATA] [-w] [-v] sqlite_file
 
 CLI command to start an MCP server for interacting with SQLite data.
 

@@ -199,7 +199,7 @@ async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None, wr
 
 def main_cli():
     parser = argparse.ArgumentParser(
-        prog="mcp-sqlite-server",
+        prog="mcp-sqlite",
         description="CLI command to start an MCP server for interacting with SQLite data.",
     )
     parser.add_argument(
