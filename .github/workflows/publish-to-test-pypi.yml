@@ -4,6 +4,7 @@ on: push
 jobs:
   build:
     name: Build distribution 📦
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +32,7 @@ jobs:
   publish-to-pypi:
     name: >-
       Publish Python 🐍 distribution 📦 to PyPI
-    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, '-rc.')  # only publish to PyPI on non-RC tag pushes
     needs:
     - build
     runs-on: ubuntu-latest
@@ -48,9 +49,12 @@ jobs:
         path: dist/
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        verbose: true
   
   publish-to-testpypi:
     name: Publish Python 🐍 distribution 📦 to TestPyPI
+    if: startsWith(github.ref, 'refs/tags/') && contains(github.ref, '-rc.')  # only publish to TestPyPI on RC tag pushes
     needs:
     - build
     runs-on: ubuntu-latest
@@ -72,3 +76,4 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
+        verbose: true

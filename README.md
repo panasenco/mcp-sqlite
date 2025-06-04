@@ -22,7 +22,7 @@ Provide useful data to AI agents without giving them access to external systems.
     }
     ```
 
-### MCP Inspector
+### Exploring with MCP Inspector
 Use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) dashboard to interact with the SQLite database the same way that an AI agent would:
 1.  Install [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
 2.  Run:
@@ -31,13 +31,13 @@ Use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) da
     ```
 3.  Open the MCP Inspector dashboard URL that's outputted in your terminal window.
 
-### Exploring your data with Datasette
+### Exploring with Datasette
 Since `mcp-sqlite` metadata is compatible with the Datasette metadata file, you can also explore your data with Datasette:
 ```
 uvx datasette serve path/to/data.db --metadata path/to/metadata.yml
 ```
 
-## MCP Tools
+## MCP Tools provided by mcp-sqlite
 - **sqlite_get_catalog()**: Tool the agent can call to get the complete catalog of the databases, tables, and columns in the data, combined with metadata from the metadata file. In an earlier iteration of `mcp-sqlite`, this was a resource instead of a tool, but resources are not as widely supported, so it got turned into a tool. If you have a usecase for the catalog as a resource, open an issue and we'll bring it back!
 - **sqlite_execute(sql)**: Tool the agent can call to execute arbitrary SQL. The table results are returned as HTML, as that is the format LLMs seem to perform best with according to [Siu et al](https://arxiv.org/abs/2305.13062).
 - **sqlite_execute_main_{canned query name}({canned query args})**: A tool is created for each canned query in the metadata, allowing the agent to run predefined queries without writing any SQL.
@@ -45,9 +45,22 @@ uvx datasette serve path/to/data.db --metadata path/to/metadata.yml
 ## Usage
 
 ### Command-line options
-- `--write`:
-  Allows the AI agent to execute queries that change the SQLite database.
-  By default the database opens in read-only mode.
+```
+usage: mcp-sqlite-server [-h] [-m METADATA] [-w] [-v] sqlite_file
+
+CLI command to start an MCP server for interacting with SQLite data.
+
+positional arguments:
+  sqlite_file           Path to SQLite file to serve the MCP server for.
+
+options:
+  -h, --help            show this help message and exit
+  -m METADATA, --metadata METADATA
+                        Path to Datasette-compatible metadata JSON file.
+  -w, --write           Set this flag to allow the AI agent to write to the database. By default the database is opened in read-only       
+                        mode.
+  -v, --verbose         Be verbose. Include once for INFO output, twice for DEBUG output.
+```
 
 ### Metadata
 
