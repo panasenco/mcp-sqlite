@@ -100,6 +100,8 @@ async def get_catalog(sqlite_connection: aiosqlite.Connection, metadata: RootMet
 
 async def execute(sqlite_connection: aiosqlite.Connection, sql: str, parameters: dict[str, str] = {}) -> str:
     cursor = await sqlite_connection.execute(sql, parameters)
+    if not cursor.description:
+        return "Statement executed successfully"
     header_inner_html = ""
     for column_description in cursor.description:
         header_inner_html += f"<th>{html.escape(column_description[0])}</th>"
@@ -123,6 +125,7 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
             # Extract named parameters from the query SQL
             query_params = re.findall(r":(\w+)", query.sql)
             canned_queries[f"{database}_{query_slug}"] = (query_params, query.sql)
+
     @server.list_tools()
     async def list_tools() -> list[Tool]:
         tools = [
@@ -159,7 +162,7 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
                             for param in query_params
                         },
                         "required": query_params,
-                    }
+                    },
                 )
             )
         return tools
@@ -181,13 +184,13 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
     return server
 
 
-async def main(sqlite_file: str, metadata_yaml_file: str | None = None):
+async def main(sqlite_file: str, metadata_yaml_file: str | None = None, write: bool = False):
     if metadata_yaml_file:
         with open(metadata_yaml_file, "r") as metadata_file_descriptor:
             metadata_dict = yaml.safe_load(metadata_file_descriptor.read())
     else:
         metadata_dict = {}
-    async with aiosqlite.connect(f"file:{sqlite_file}", uri=True) as sqlite_connection:
+    async with aiosqlite.connect(f"file:{sqlite_file}?mode={'rw' if write else 'ro'}", uri=True) as sqlite_connection:
         server = await mcp_sqlite_server(sqlite_connection=sqlite_connection, metadata=RootMetadata(**metadata_dict))
         options = server.create_initialization_options()
         async with stdio_server() as (read_stream, write_stream):
@@ -209,6 +212,12 @@ if __name__ == "__main__":
         help="Path to Datasette-compatible metadata JSON file.",
     )
     parser.add_argument(
+        "-w",
+        "--write",
+        help="Set this flag to allow the AI agent to write to the database. By default the database is opened in read-only mode.",
+        action="store_true"
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         help="Be verbose. Include once for INFO output, twice for DEBUG output.",
@@ -218,4 +227,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     LOGGING_LEVELS = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=LOGGING_LEVELS[min(args.verbose, len(LOGGING_LEVELS) - 1)])  # cap to last level index
-    anyio.run(main, args.sqlite_file, args.metadata)
+    anyio.run(main, args.sqlite_file, args.metadata, args.write)

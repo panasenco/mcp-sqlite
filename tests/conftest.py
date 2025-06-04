@@ -15,7 +15,7 @@ def anyio_backend():
     return "asyncio"
 
 
-async def session_generator(statements, metadata):
+async def session_generator(statements, metadata, write=False):
     # Create the SQLite database file
     async with aiofiles.tempfile.NamedTemporaryFile(
         "w", prefix="mcp_sqlite_test_small_", suffix=".db", delete_on_close=False
@@ -36,18 +36,21 @@ async def session_generator(statements, metadata):
             yaml.dump(metadata, metadata_file, sort_keys=False)
             metadata_file.close()
             # Create a stdio-connected client
+            args = [
+                "--directory",
+                str(Path(__file__).parent.parent),
+                "run",
+                "mcp_sqlite/server.py",
+                str(db_file.name),
+                "--metadata",
+                metadata_file.name,
+            ]
+            if write:
+                args.append("--write")
             async with stdio_client(
                 StdioServerParameters(
                     command="uv",
-                    args=[
-                        "--directory",
-                        str(Path(__file__).parent.parent),
-                        "run",
-                        "mcp_sqlite/server.py",
-                        str(db_file.name),
-                        "--metadata",
-                        metadata_file.name,
-                    ],
+                    args=args,
                 )
             ) as (read, write):
                 async with ClientSession(read, write) as session:
@@ -60,6 +63,12 @@ async def session_generator(statements, metadata):
 @pytest.fixture(scope="session")
 async def empty_session():
     async for session in session_generator([], {}):
+        yield session
+
+
+@pytest.fixture(scope="session")
+async def empty_session_write_allowed():
+    async for session in session_generator([], {}, write=True):
         yield session
 
 
@@ -150,19 +159,19 @@ async def canned_session():
             "create table table4 (col4)",
             "insert into table4 values (5)",
         ],
-        {
-            "databases": {
-                "_": {
-                    "queries": {
-                        "answer_to_life": {
-                            "sql": "select 42",
+            {
+                "databases": {
+                    "_": {
+                        "queries": {
+                            "answer_to_life": {
+                                "sql": "select 42",
+                            },
+                            "add_integers": {
+                                "sql": "select :a + :b as total",
+                            },
                         },
-                        "add_integers": {
-                            "sql": "select :a + :b as total",
-                        },
-                    },
-                }
+                    }
+                },
             },
-        },
-    ):
-        yield session
+        ):
+            yield session
