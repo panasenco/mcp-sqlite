@@ -1,7 +1,7 @@
 [project]
 name = "mcp-sqlite"
-version = "0.1.1"
-description = "Making local data equally accessible to AI agents and humans. Datasette-compatible!"
+version = "0.1.2"
+description = "MCP server for SQLite files. Supports Datasette-compatible metadata!"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

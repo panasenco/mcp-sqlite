@@ -88,6 +88,7 @@ async def minimal_session():
         yield session
 
 
+# Test small_session with both YAML and JSON metadata every time
 @pytest.fixture(scope="session", params=[True, False])
 async def small_session(request):
     async for session in session_generator(
@@ -174,6 +175,12 @@ async def canned_session():
                         },
                         "add_integers": {
                             "sql": "select :a + :b as total",
+                        },
+                        "descriptive": {
+                            "title": "My useful title",
+                            "description": "My description is so good the SQL can be omitted.",
+                            "hide_sql": True,
+                            "sql": "select null as this_should_not_appear_in_description",
                         },
                     },
                 }

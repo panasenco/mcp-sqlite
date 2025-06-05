@@ -1,5 +1,6 @@
 # mcp-sqlite
-Provide useful data to AI agents without giving them access to external systems. Datasette-compatible!
+Provide useful data to AI agents without giving them access to external systems. Compatible with Datasette for human users!
+
 
 ## Quickstart
 1.  Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
@@ -31,18 +32,29 @@ Use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) da
     ```
     npx @modelcontextprotocol/inspector uvx mcp-sqlite path/to/database.db --metadata path/to/metadata.yml
     ```
-3.  Open the MCP Inspector dashboard URL that's outputted in your terminal window.
 
 ### Exploring with Datasette
 Since `mcp-sqlite` metadata is compatible with the Datasette metadata file, you can also explore your data with Datasette:
 ```
 uvx datasette serve path/to/data.db --metadata path/to/metadata.yml
 ```
+Compatibility with Datasette allows both AI agents and humans to easily explore the same local data!
+
+
+## Motivation
+As AI agents get smarter and more capable, the pressure to build and iterate AI-powered applications increases proportionally.
+Malicious users can take advantage of AI agents' intelligence and access to access other users' data.
+mcp-sqlite allows AI agents to have all the data they need in a local SQLite database, without any access to external systems.
+
 
 ## MCP Tools provided by mcp-sqlite
-- **sqlite_get_catalog()**: Tool the agent can call to get the complete catalog of the databases, tables, and columns in the data, combined with metadata from the metadata file. In an earlier iteration of `mcp-sqlite`, this was a resource instead of a tool, but resources are not as widely supported, so it got turned into a tool. If you have a usecase for the catalog as a resource, open an issue and we'll bring it back!
-- **sqlite_execute(sql)**: Tool the agent can call to execute arbitrary SQL. The table results are returned as HTML, as that is the format LLMs seem to perform best with according to [Siu et al](https://arxiv.org/abs/2305.13062).
+- **sqlite_get_catalog()**: Tool the agent can call to get the complete catalog of the databases, tables, and columns in the data, combined with metadata from the metadata file.
+  In an earlier iteration of `mcp-sqlite`, this was a resource instead of a tool, but resources are not as widely supported, so it got turned into a tool.
+  If you have a usecase for the catalog as a resource, open an issue and we'll bring it back!
+- **sqlite_execute(sql)**: Tool the agent can call to execute arbitrary SQL. The table results are returned as HTML.
+  For more information about why HTML is the best format for LLMs to process, see [Siu et al](https://arxiv.org/abs/2305.13062).
 - **sqlite_execute_main_{canned query name}({canned query args})**: A tool is created for each canned query in the metadata, allowing the agent to run predefined queries without writing any SQL.
+
 
 ## Usage
 
@@ -67,7 +79,7 @@ options:
 ### Metadata
 
 #### Hidden tables
-[Hiding a table](https://docs.datasette.io/en/stable/metadata.html#hiding-tables) with `hidden: true` will hide it from the catalog returned by the `get_catalog()` MCP tool.
+[Hiding a table](https://docs.datasette.io/en/stable/metadata.html#hiding-tables) with `hidden: true` will hide it from the catalog returned by the MCP tool `sqlite_get_catalog()`.
 However, note that the table will still be accessible by the AI agent!
 Never rely on hiding a table from the catalog as a security feature.
 
@@ -82,35 +94,11 @@ The canned queries functionality is still in active development with more featur
 | ------------------------------ | ------------------------ |
 | [Displayed in catalog](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
 | [Executable](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
-| [Titles](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ (planned) |
-| [Descriptions](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ (planned) |
+| [Titles](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
+| [Descriptions](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
 | [Parameters](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
 | [Explicit parameters](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ (planned) |
-| [Hide SQL](https://docs.datasette.io/en/stable/sql_queries.html#hide-sql) | ❌ (planned) |
+| [Hide SQL](https://docs.datasette.io/en/stable/sql_queries.html#hide-sql) | ✅ |
 | [Fragments](https://docs.datasette.io/en/stable/sql_queries.html#fragment) | ❌ (not planned) |
 | [Write restrictions on canned queries](https://docs.datasette.io/en/stable/sql_queries.html#writable-canned-queries) | ❌ (planned) |
 | [Magic parameters](https://docs.datasette.io/en/stable/sql_queries.html#magic-parameters) | ❌ (not planned) |
-
-This will open up a Datasette dashboard where you can see the exact same descriptions and sample queries that the LLM would see.
-Compatibility with Datasette allows both humans and AI to interact with the same local data!
-
-## Developing
-1.  Clone this repo locally.
-2.  Run `uv venv` to create the Python virtual environment.
-    Then run `source .venv/bin/activate` on Unix or `.venv\Scripts\activate` on Windows.
-3.  Run the server with [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector)
-    (you'll have to [install Node.js and npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) first):
-    ```
-    npx @modelcontextprotocol/inspector uv run mcp_sqlite/server.py test.db --metadata test.yml
-    ```
-
-- Run `python -m pytest` to run tests.
-- Run `ruff format` to format Python code.
-- Run `pyright` for static type checking.
-
-### Publishing
-- Tagging a commit with a release candidate tag (containing `rc`) will trigger build and upload to TestPyPi.
-  - Note that Python package version numbers are NOT SemVer! See [Python packaging versioning](https://packaging.python.org/en/latest/discussions/versioning/).
-  - To test that the package works on TestPyPi, use: `uvx --default-index https://test.pypi.org/simple/ --index https://pypi.org/simple/ mcp-sqlite@0.1.0rc2 --help` (replacing `0.1.0rc2` with your own version number).
-  - Similarly, to test the TestPyPi package with MCP inspector, use: `npx @modelcontextprotocol/inspector uvx --default-index https://test.pypi.org/simple/ --index https://pypi.org/simple/ mcp-sqlite@0.1.0rc2 test.db --metadata test.yml`.
-- Tagging a commit with a non-release candidate tag (not containing `rc`) will trigger build and upload to PyPi.

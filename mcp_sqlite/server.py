@@ -24,6 +24,9 @@ class TableMetadata(BaseModel):
 
 class QueryMetadata(BaseModel):
     sql: str
+    title: str | None = None
+    description: str | None = None
+    hide_sql: bool = Field(False, exclude=True)
     model_config = {
         "extra": "allow",
     }
@@ -114,7 +117,9 @@ async def execute(sqlite_connection: aiosqlite.Connection, sql: str, parameters:
     return f"<table>{rows_html}</table>"
 
 
-async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: RootMetadata = RootMetadata()) -> Server:
+async def mcp_sqlite_server(
+    sqlite_connection: aiosqlite.Connection, metadata: RootMetadata = RootMetadata(), sqlite_write: bool = False
+) -> Server:
     """Create a catalog of databases, tables, and columns that are actually in the connection, enriched with optional metadata."""
     server = Server("mcp-sqlite")
 
@@ -124,13 +129,29 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
         for query_slug, query in initial_catalog.databases[database].queries.items():
             # Extract named parameters from the query SQL
             query_params = re.findall(r":(\w+)", query.sql)
-            canned_queries[f"{database}_{query_slug}"] = (query_params, query.sql)
+            canned_queries[f"{database}_{query_slug}"] = (query_slug, query_params, query)
+
+    get_catalog_description = (
+        "Call this tool first! Returns the complete catalog of available databases, tables, and columns."
+    )
+    if len(metadata.databases) > 0:
+        get_catalog_description += " The catalog contains important metadata!"
+
+    execute_description = (
+        "Call this tool to execute an arbitrary SQLite query. "
+        "Be sure you've called sqlite_get_catalog() first to understand the structure of the data!"
+    )
+    if not sqlite_write:
+        execute_description += (
+            " Note that the database is open in read-only mode."
+        )
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
         tools = [
             Tool(
                 name="sqlite_get_catalog",
+                description=get_catalog_description,
                 inputSchema={
                     "type": "object",
                     "properties": {},
@@ -138,6 +159,7 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
             ),
             Tool(
                 name="sqlite_execute",
+                description=execute_description,
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -149,10 +171,19 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
                 },
             ),
         ]
-        for query_name, (query_params, _) in canned_queries.items():
+        for query_name, (query_slug, query_params, query) in canned_queries.items():
+            if query.title:
+                query_description = f"{query.title.removesuffix('.')}."
+            else:
+                query_description = f"Execute canned query '{query_slug}' provided in the metadata."
+            if query.description:
+                query_description += f" {query.description.removesuffix('.')}."
+            if not query.hide_sql:
+                query_description += f" SQL of the query:\n{query.sql}"
             tools.append(
                 Tool(
                     name=f"sqlite_execute_{query_name}",
+                    description=query_description,
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -171,27 +202,31 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
     async def call_tool(name: str, arguments: dict[str, str]) -> list[TextContent]:
         if name == "sqlite_get_catalog":
             catalog = await get_catalog(sqlite_connection=sqlite_connection, metadata=metadata)
-            return [TextContent(type="text", text=catalog.model_dump_json())]
+            return [TextContent(type="text", text=catalog.model_dump_json(exclude_none=True))]
         elif name == "sqlite_execute":
             return [TextContent(type="text", text=await execute(sqlite_connection, arguments["sql"]))]
         elif name.startswith("sqlite_execute_"):
             query_name = name.removeprefix("sqlite_execute_")
             if query_name in canned_queries:
-                _, query_sql = canned_queries[query_name]
-                return [TextContent(type="text", text=await execute(sqlite_connection, query_sql, arguments))]
+                _, _, query = canned_queries[query_name]
+                return [TextContent(type="text", text=await execute(sqlite_connection, query.sql, arguments))]
         raise ValueError(f"Unknown tool: {name}")
 
     return server
 
 
-async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None, write: bool = False):
+async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None, sqlite_write: bool = False):
     if metadata_yaml_file:
         with open(metadata_yaml_file, "r") as metadata_file_descriptor:
             metadata_dict = yaml.safe_load(metadata_file_descriptor.read())
     else:
         metadata_dict = {}
-    async with aiosqlite.connect(f"file:{sqlite_file}?mode={'rw' if write else 'ro'}", uri=True) as sqlite_connection:
-        server = await mcp_sqlite_server(sqlite_connection=sqlite_connection, metadata=RootMetadata(**metadata_dict))
+    async with aiosqlite.connect(
+        f"file:{sqlite_file}?mode={'rw' if sqlite_write else 'ro'}", uri=True
+    ) as sqlite_connection:
+        server = await mcp_sqlite_server(
+            sqlite_connection=sqlite_connection, metadata=RootMetadata(**metadata_dict), sqlite_write=sqlite_write
+        )
         options = server.create_initialization_options()
         async with stdio_server() as (read_stream, write_stream):
             await server.run(read_stream, write_stream, options)
