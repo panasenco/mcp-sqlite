@@ -1,6 +1,6 @@
 # mcp-sqlite
 <p align="center">
-  <img src="images/mcp-sqlite-256.png">
+  <img src="https://github.com/panasenco/mcp-sqlite/raw/main/images/mcp-sqlite-256.png">
 </p>
 
 Provide useful data to AI agents without giving them access to external systems. Compatible with Datasette for human users!
@@ -64,8 +64,8 @@ The same database and metadata files can be used to explore the data interactive
 
 | MCP Inspector | Datasette |
 | ------------- | --------- |
-| ![](images/mcp-inspector-sqlite-get-catalog.png) | ![](images/datasette-table-view.png) |
-| ![](images/mcp-inspector-sqlite-canned-query-tool.png) | ![](images/datasette-canned-query.png) |
+| ![](https://github.com/panasenco/mcp-sqlite/raw/main/images/mcp-inspector-sqlite-get-catalog.png) | ![](https://github.com/panasenco/mcp-sqlite/raw/main/images/datasette-table-view.png) |
+| ![](https://github.com/panasenco/mcp-sqlite/raw/main/images/mcp-inspector-sqlite-canned-query-tool.png) | ![](https://github.com/panasenco/mcp-sqlite/raw/main/images/datasette-canned-query.png) |
 
 ### MCP Inspector
 Use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) dashboard to interact with the SQLite database the same way that an AI agent would:
