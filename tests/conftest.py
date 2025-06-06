@@ -26,6 +26,7 @@ async def session_generator(statements, metadata, metadata_yaml=True, db_write=F
             for statement in statements:
                 await sqlite_connection.execute(statement)
             await sqlite_connection.commit()
+        db_file_stem = Path(str(db_file.name)).stem
         # Create the metadata file
         metadata_suffix = ".yml" if metadata_yaml else ".json"
         with tempfile.NamedTemporaryFile(
@@ -34,7 +35,7 @@ async def session_generator(statements, metadata, metadata_yaml=True, db_write=F
             # Replace the database name with the actual one
             if "databases" in metadata:
                 if "_" in metadata["databases"]:
-                    metadata["databases"][Path(str(db_file.name)).stem] = metadata["databases"].pop("_")
+                    metadata["databases"][db_file_stem] = metadata["databases"].pop("_")
             if metadata_yaml:
                 yaml.dump(metadata, metadata_file, sort_keys=False)
             else:
@@ -60,38 +61,38 @@ async def session_generator(statements, metadata, metadata_yaml=True, db_write=F
             ) as (read, write):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
-                    yield session
+                    yield db_file_stem, session
             # Give time to the MCP server to exit before deleting the files
             await asyncio.sleep(1)
 
 
 @pytest.fixture(scope="session")
-async def empty_session():
-    async for session in session_generator([], {}):
-        yield session
+async def empty_tuple():
+    async for session_tuple in session_generator([], {}):
+        yield session_tuple
 
 
 @pytest.fixture(scope="session")
-async def empty_session_write_allowed():
-    async for session in session_generator([], {}, db_write=True):
-        yield session
+async def empty_tuple_write_allowed():
+    async for session_tuple in session_generator([], {}, db_write=True):
+        yield session_tuple
 
 
 @pytest.fixture(scope="session")
-async def minimal_session():
-    async for session in session_generator(
+async def minimal_tuple():
+    async for session_tuple in session_generator(
         [
             "create table table1 (col1, col2)",
         ],
         {},
     ):
-        yield session
+        yield session_tuple
 
 
-# Test small_session with both YAML and JSON metadata every time
+# Test small_tuple with both YAML and JSON metadata every time
 @pytest.fixture(scope="session", params=[True, False])
-async def small_session(request):
-    async for session in session_generator(
+async def small_tuple(request):
+    async for session_tuple in session_generator(
         [
             "create table table1 (col1 primary key, col2)",
             "insert into table1 values (3, 'x')",
@@ -151,12 +152,12 @@ async def small_session(request):
         },
         metadata_yaml=request.param,
     ):
-        yield session
+        yield session_tuple
 
 
 @pytest.fixture(scope="session")
-async def canned_session():
-    async for session in session_generator(
+async def canned_tuple():
+    async for session_tuple in session_generator(
         [
             "create table table1 (col1 primary key, col2)",
             "insert into table1 values (3, 'x')",
@@ -187,4 +188,4 @@ async def canned_session():
             },
         },
     ):
-        yield session
+        yield session_tuple

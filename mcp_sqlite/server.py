@@ -1,9 +1,8 @@
 import argparse
 import html
 import logging
-from pathlib import Path
+from pathlib import PurePath
 import re
-from typing import Any
 
 import aiosqlite
 import anyio
@@ -33,6 +32,7 @@ class QueryMetadata(BaseModel):
 
 
 class DatabaseMetadata(BaseModel):
+    title: str | None = None
     tables: dict[str, TableMetadata] = {}
     queries: dict[str, QueryMetadata] = {}
     model_config = {
@@ -53,7 +53,7 @@ async def get_catalog(sqlite_connection: aiosqlite.Connection, metadata: RootMet
     # Get the true database names and stems of their filepaths
     cursor = await sqlite_connection.execute("pragma database_list")
     for database_name, database_stem in [
-        (database_row[1], Path(database_row[2]).stem) for database_row in await cursor.fetchall()
+        (database_row[1], PurePath(database_row[2]).stem) for database_row in await cursor.fetchall()
     ]:
         database_in_metadata = database_stem in metadata.databases
         # Rename from the stem to the true SQLite-internal name (usually "main")
@@ -64,6 +64,9 @@ async def get_catalog(sqlite_connection: aiosqlite.Connection, metadata: RootMet
                 else {}
             )
         )
+        # Set the default title for the database if not provided
+        if not database.title:
+            database.title = database_stem
         # Get the table names
         cursor = await sqlite_connection.execute(f"pragma {database_name}.table_list")
         for table_name in [
@@ -128,7 +131,7 @@ async def mcp_sqlite_server(
     for database in initial_catalog.databases:
         for query_slug, query in initial_catalog.databases[database].queries.items():
             # Extract named parameters from the query SQL
-            query_params = re.findall(r":(\w+)", query.sql)
+            query_params = set(re.findall(r":(\w+)", query.sql))
             canned_queries[f"{database}_{query_slug}"] = (query_slug, query_params, query)
 
     get_catalog_description = (
@@ -141,10 +144,12 @@ async def mcp_sqlite_server(
         "Call this tool to execute an arbitrary SQLite query. "
         "Be sure you've called sqlite_get_catalog() first to understand the structure of the data!"
     )
-    if not sqlite_write:
+    if len(canned_queries) > 0:
         execute_description += (
-            " Note that the database is open in read-only mode."
+            " You should always execute a canned query tool instead of this tool where it makes sense!"
         )
+    if not sqlite_write:
+        execute_description += " Note that the database is open in read-only mode."
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -244,7 +249,7 @@ def main_cli():
     parser.add_argument(
         "-m",
         "--metadata",
-        help="Path to Datasette-compatible metadata JSON file.",
+        help="Path to Datasette-compatible metadata YAML or JSON file.",
     )
     parser.add_argument(
         "-w",

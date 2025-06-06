@@ -1,11 +1,44 @@
 # mcp-sqlite
+<p align="center">
+  <img src="images/mcp-sqlite-256.png">
+</p>
+
 Provide useful data to AI agents without giving them access to external systems. Compatible with Datasette for human users!
+
+## Features
+- AI agents can get the structure of all tables and columns in the SQLite database in one command - `sqlite_get_catalog`.
+  - The catalog can be enriched with descriptions for the tables and columns using a simple YAML or JSON metadata file.
+- The same metadata file can contain canned queries to the AI to use.
+  Each canned query will be turned into a separate MCP tool `sqlite_execute_main_{tool name}`.
+- AI agents can execute arbitrary SQL queries with `sqlite_execute`.
 
 
 ## Quickstart
 1.  Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
-2.  Create or [download](https://github.com/davidjamesknight/SQLite_databases_for_learning_data_science/raw/refs/heads/main/titanic.db) a SQLite database file.
-3.  Optionally create a metadata file for your dataset. See [Datasette metadata docs](https://docs.datasette.io/en/stable/metadata.html) for details.
+2.  Download the sample SQLite database [titanic.db](https://github.com/davidjamesknight/SQLite_databases_for_learning_data_science/raw/refs/heads/main/titanic.db).
+3.  Create a metadata file `titanic.yml` for your dataset:
+    ```yaml
+    databases:
+      titanic:
+        tables:
+          Observation:
+            description: Main table connecting passenger attributes to observed outcomes.
+            columns:
+              survived: "0/1 indicator whether the passenger survived."
+              age: The passenger's age at the time of the crash.
+              # Other columns are not documented but are still visible to the AI agent
+        queries:
+          survivors_of_age:
+            title: Count survivors of a specific age
+            description: Returns the total counts of passengers and survivors, both for all ages and for a specific provided age.
+            sql: |-
+              select
+                count(*) as total_passengers,
+                sum(survived) as survived_passengers,
+                sum(case when age = :age then 1 else 0 end) as total_specific_age,
+                sum(case when age = :age and survived = 1 then 1 else 0 end) as survived_specific_age
+              from Observation
+    ```
 4.  Create an entry in your MCP client for your database and metadata
     ```json
     {
@@ -14,37 +47,40 @@ Provide useful data to AI agents without giving them access to external systems.
                 "command": "uvx",
                 "args": [
                     "mcp-sqlite",
-                    "/absolute/path/to/database.db",
+                    "/absolute/path/to/titanic.db",
                     "--metadata",
-                    "/absolute/path/to/metadata.yml"
+                    "/absolute/path/to/titanic.yml"
                 ]
             }
         }
     }
     ```
 
-Your AI agent should now be able to use mcp-sqlite tools like `sqlite_get_catalog` and `sqlite_execute`!
+Your AI agent should now be able to use mcp-sqlite tools `sqlite_get_catalog`, `sqlite_execute`, and `sqlite_execute_main_survivors_of_age`!
 
-### Exploring with MCP Inspector
+## Interactive exploration with MCP Inspector and Datasette
+
+The same database and metadata files can be used to explore the data interactively with MCP Inspector and Datasette.
+
+| MCP Inspector | Datasette |
+| ------------- | --------- |
+| ![](images/mcp-inspector-sqlite-get-catalog.png) | ![](images/datasette-table-view.png) |
+| ![](images/mcp-inspector-sqlite-canned-query-tool.png) | ![](images/datasette-canned-query.png) |
+
+### MCP Inspector
 Use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) dashboard to interact with the SQLite database the same way that an AI agent would:
 1.  Install [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
 2.  Run:
     ```
-    npx @modelcontextprotocol/inspector uvx mcp-sqlite path/to/database.db --metadata path/to/metadata.yml
+    npx @modelcontextprotocol/inspector uvx mcp-sqlite path/to/titanic.db --metadata path/to/titanic.yml
     ```
 
-### Exploring with Datasette
+### Datasette
 Since `mcp-sqlite` metadata is compatible with the Datasette metadata file, you can also explore your data with Datasette:
 ```
-uvx datasette serve path/to/data.db --metadata path/to/metadata.yml
+uvx datasette serve path/to/titanic.db --metadata path/to/titanic.yml
 ```
 Compatibility with Datasette allows both AI agents and humans to easily explore the same local data!
-
-
-## Motivation
-As AI agents get smarter and more capable, the pressure to build and iterate AI-powered applications increases proportionally.
-Malicious users can take advantage of AI agents' intelligence and access to access other users' data.
-mcp-sqlite allows AI agents to have all the data they need in a local SQLite database, without any access to external systems.
 
 
 ## MCP Tools provided by mcp-sqlite
@@ -70,9 +106,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -m METADATA, --metadata METADATA
-                        Path to Datasette-compatible metadata JSON file.
-  -w, --write           Set this flag to allow the AI agent to write to the database. By default the database is opened in read-only       
-                        mode.
+                        Path to Datasette-compatible metadata YAML or JSON file.
+  -w, --write           Set this flag to allow the AI agent to write to the database. By default the database is opened in read-only mode.
   -v, --verbose         Be verbose. Include once for INFO output, twice for DEBUG output.
 ```
 

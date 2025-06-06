@@ -4,23 +4,26 @@ import pytest
 
 
 @pytest.mark.anyio
-async def test_empty_catalog(empty_session):
+async def test_empty_catalog(empty_tuple):
+    empty_stem, empty_session = empty_tuple
     tools = await empty_session.list_tools()
     assert len(tools.tools) > 0
     result = await empty_session.call_tool("sqlite_get_catalog", {})
     assert len(result.content) == 1
     assert len(result.content[0].text) > 0
-    assert json.loads(result.content[0].text) == {"databases": {"main": {"queries": {}, "tables": {}}}}
+    assert json.loads(result.content[0].text) == {"databases": {"main": {"title": empty_stem, "queries": {}, "tables": {}}}}
 
 
 @pytest.mark.anyio
-async def test_minimal_catalog(minimal_session):
+async def test_minimal_catalog(minimal_tuple):
+    minimal_stem, minimal_session = minimal_tuple
     # There should be only one resource that returns the entire catalog of the SQLite connection
     result = await minimal_session.call_tool("sqlite_get_catalog", {})
     assert len(result.content) == 1
     assert json.loads(result.content[0].text) == {
         "databases": {
             "main": {
+                "title": minimal_stem,
                 "queries": {},
                 "tables": {
                     "table1": {
@@ -36,7 +39,8 @@ async def test_minimal_catalog(minimal_session):
 
 
 @pytest.mark.anyio
-async def test_small_metadata_catalog(small_session):
+async def test_small_metadata_catalog(small_tuple):
+    small_stem, small_session = small_tuple
     tools = await small_session.list_tools()
     assert len(tools.tools) > 0
     result = await small_session.call_tool("sqlite_get_catalog", {})
@@ -48,6 +52,7 @@ async def test_small_metadata_catalog(small_session):
         "source_url": "http://example.com/",
         "databases": {
             "main": {
+                "title": small_stem,
                 "source": "Alternative source",
                 "source_url": "http://example.com/",
                 "queries": {

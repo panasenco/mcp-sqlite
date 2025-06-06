@@ -2,5 +2,5 @@
 .ruff_cache/
 .venv/
 **/__pycache__
-test.db
-test.yml
+/*.db
+/*.yml

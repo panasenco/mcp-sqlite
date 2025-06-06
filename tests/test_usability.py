@@ -2,7 +2,8 @@ import pytest
 
 
 @pytest.mark.anyio
-async def test_default_tools_have_descriptions(empty_session_write_allowed):
+async def test_default_tools_have_descriptions(empty_tuple_write_allowed):
+    _, empty_session_write_allowed = empty_tuple_write_allowed
     tools = await empty_session_write_allowed.list_tools()
     for tool in tools.tools:
         assert tool.description is not None
@@ -10,7 +11,8 @@ async def test_default_tools_have_descriptions(empty_session_write_allowed):
 
 
 @pytest.mark.anyio
-async def test_canned_query_tools_have_descriptions(small_session):
+async def test_canned_query_tools_have_descriptions(small_tuple):
+    _, small_session = small_tuple
     tools = await small_session.list_tools()
     for tool in tools.tools:
         assert tool.description is not None
@@ -23,7 +25,8 @@ async def test_canned_query_tools_have_descriptions(small_session):
 
 
 @pytest.mark.anyio
-async def test_canned_query_tools_advanced_descriptions(canned_session):
+async def test_canned_query_tools_advanced_descriptions(canned_tuple):
+    _, canned_session = canned_tuple
     tools = await canned_session.list_tools()
     descriptive_tool = [tool for tool in tools.tools if tool.name == "sqlite_execute_main_descriptive"][0]
     assert "My useful title" in descriptive_tool.description
