@@ -135,5 +135,5 @@ The canned queries functionality is still in active development with more featur
 | [Explicit parameters](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ (planned) |
 | [Hide SQL](https://docs.datasette.io/en/stable/sql_queries.html#hide-sql) | ✅ |
 | [Fragments](https://docs.datasette.io/en/stable/sql_queries.html#fragment) | ❌ (not planned) |
-| [Write restrictions on canned queries](https://docs.datasette.io/en/stable/sql_queries.html#writable-canned-queries) | ❌ (planned) |
+| [Write restrictions on canned queries](https://docs.datasette.io/en/stable/sql_queries.html#writable-canned-queries) | ✅ |
 | [Magic parameters](https://docs.datasette.io/en/stable/sql_queries.html#magic-parameters) | ❌ (not planned) |

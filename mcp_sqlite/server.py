@@ -25,6 +25,7 @@ class QueryMetadata(BaseModel):
     sql: str
     title: str | None = None
     description: str | None = None
+    write: bool | None = None
     hide_sql: bool = Field(False, exclude=True)
     model_config = {
         "extra": "allow",
@@ -47,84 +48,88 @@ class RootMetadata(BaseModel):
     }
 
 
-async def get_catalog(sqlite_connection: aiosqlite.Connection, metadata: RootMetadata) -> RootMetadata:
+async def get_catalog(sqlite_file: str, metadata: RootMetadata) -> RootMetadata:
     # Copy all metadata except databases
     catalog = RootMetadata(**{key: value for key, value in metadata if key != "databases"})
-    # Get the true database names and stems of their filepaths
-    cursor = await sqlite_connection.execute("pragma database_list")
-    for database_name, database_stem in [
-        (database_row[1], PurePath(database_row[2]).stem) for database_row in await cursor.fetchall()
-    ]:
-        database_in_metadata = database_stem in metadata.databases
-        # Rename from the stem to the true SQLite-internal name (usually "main")
-        database = DatabaseMetadata(
-            **(
-                {key: value for key, value in metadata.databases[database_stem] if key != "tables"}
-                if database_in_metadata
-                else {}
-            )
-        )
-        # Set the default title for the database if not provided
-        if not database.title:
-            database.title = database_stem
-        # Get the table names
-        cursor = await sqlite_connection.execute(f"pragma {database_name}.table_list")
-        for table_name in [
-            table_row[1] for table_row in await cursor.fetchall() if not table_row[1].startswith("sqlite_")
+    async with aiosqlite.connect(f"file:{sqlite_file}?mode=ro", uri=True) as sqlite_connection:
+        # Get the true database names and stems of their filepaths
+        cursor = await sqlite_connection.execute("pragma database_list")
+        for database_name, database_stem in [
+            (database_row[1], PurePath(database_row[2]).stem) for database_row in await cursor.fetchall()
         ]:
-            table_in_metadata = database_in_metadata and table_name in metadata.databases[database_stem].tables
-            table = TableMetadata(
+            database_in_metadata = database_stem in metadata.databases
+            # Rename from the stem to the true SQLite-internal name (usually "main")
+            database = DatabaseMetadata(
                 **(
-                    {
-                        key: value
-                        for key, value in metadata.databases[database_stem].tables[table_name]
-                        if key != "columns"
-                    }
-                    if table_in_metadata
+                    {key: value for key, value in metadata.databases[database_stem] if key != "tables"}
+                    if database_in_metadata
                     else {}
                 )
             )
-            # Omit hidden tables
-            if table.hidden:
-                continue
-            # Get the column names
-            cursor = await sqlite_connection.execute(f"pragma {database_name}.table_info({table_name})")
-            for column_name in [column_row[1] for column_row in await cursor.fetchall()]:
-                column_in_metadata = (
-                    table_in_metadata and column_name in metadata.databases[database_stem].tables[table_name].columns
+            # Set the default title for the database if not provided
+            if not database.title:
+                database.title = database_stem
+            # Get the table names
+            cursor = await sqlite_connection.execute(f"pragma {database_name}.table_list")
+            for table_name in [
+                table_row[1] for table_row in await cursor.fetchall() if not table_row[1].startswith("sqlite_")
+            ]:
+                table_in_metadata = database_in_metadata and table_name in metadata.databases[database_stem].tables
+                table = TableMetadata(
+                    **(
+                        {
+                            key: value
+                            for key, value in metadata.databases[database_stem].tables[table_name]
+                            if key != "columns"
+                        }
+                        if table_in_metadata
+                        else {}
+                    )
                 )
-                column_description = (
-                    metadata.databases[database_stem].tables[table_name].columns[column_name]
-                    if column_in_metadata
-                    else ""
-                )
-                table.columns[column_name] = column_description
-            database.tables[table_name] = table
-        catalog.databases[database_name] = database
-    return catalog
+                # Omit hidden tables
+                if table.hidden:
+                    continue
+                # Get the column names
+                cursor = await sqlite_connection.execute(f"pragma {database_name}.table_info({table_name})")
+                for column_name in [column_row[1] for column_row in await cursor.fetchall()]:
+                    column_in_metadata = (
+                        table_in_metadata
+                        and column_name in metadata.databases[database_stem].tables[table_name].columns
+                    )
+                    column_description = (
+                        metadata.databases[database_stem].tables[table_name].columns[column_name]
+                        if column_in_metadata
+                        else ""
+                    )
+                    table.columns[column_name] = column_description
+                database.tables[table_name] = table
+            catalog.databases[database_name] = database
+        return catalog
 
 
-async def execute(sqlite_connection: aiosqlite.Connection, sql: str, parameters: dict[str, str] = {}) -> str:
-    cursor = await sqlite_connection.execute(sql, parameters)
-    if not cursor.description:
-        return "Statement executed successfully"
-    header_inner_html = ""
-    for column_description in cursor.description:
-        header_inner_html += f"<th>{html.escape(column_description[0])}</th>"
-    rows_html = f"<tr>{header_inner_html}</tr>"
-    for row in await cursor.fetchall():
-        row_inner_html = ""
-        for value in row:
-            row_inner_html += f"<td>{html.escape(str(value))}</td>"
-        rows_html += f"<tr>{row_inner_html}</tr>"
-    return f"<table>{rows_html}</table>"
+async def execute(sqlite_file: str, sql: str, parameters: dict[str, str] = {}, write: bool = False) -> str:
+    async with aiosqlite.connect(f"file:{sqlite_file}?mode={'rw' if write else 'ro'}", uri=True) as sqlite_connection:
+        cursor = await sqlite_connection.execute(sql, parameters)
+        if not cursor.description:
+            return "Statement executed successfully"
+        header_inner_html = ""
+        for column_description in cursor.description:
+            header_inner_html += f"<th>{html.escape(column_description[0])}</th>"
+        rows_html = f"<tr>{header_inner_html}</tr>"
+        for row in await cursor.fetchall():
+            row_inner_html = ""
+            for value in row:
+                row_inner_html += f"<td>{html.escape(str(value))}</td>"
+            rows_html += f"<tr>{row_inner_html}</tr>"
+        return f"<table>{rows_html}</table>"
 
 
-async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: RootMetadata = RootMetadata()) -> Server:
-    """Create a catalog of databases, tables, and columns that are actually in the connection, enriched with optional metadata."""
+async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetadata()) -> Server:
+    """Create a catalog of databases, tables, and columns that are actually in the connection, enriched with optional metadata.
+    All kwargs go to aiosqlite.connect()
+    """
     server = Server("mcp-sqlite")
-
-    initial_catalog = await get_catalog(sqlite_connection=sqlite_connection, metadata=metadata)
+    initial_catalog = await get_catalog(sqlite_file=sqlite_file, metadata=metadata)
     canned_queries = {}
     for database in initial_catalog.databases:
         for query_slug, query in initial_catalog.databases[database].queries.items():
@@ -203,15 +208,19 @@ async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: R
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, str]) -> list[TextContent]:
         if name == "sqlite_get_catalog":
-            catalog = await get_catalog(sqlite_connection=sqlite_connection, metadata=metadata)
+            catalog = await get_catalog(sqlite_file=sqlite_file, metadata=metadata)
             return [TextContent(type="text", text=catalog.model_dump_json(exclude_none=True))]
         elif name == "sqlite_execute":
-            return [TextContent(type="text", text=await execute(sqlite_connection, arguments["sql"]))]
+            return [TextContent(type="text", text=await execute(sqlite_file, arguments["sql"]))]
         elif name.startswith("sqlite_execute_"):
             query_name = name.removeprefix("sqlite_execute_")
             if query_name in canned_queries:
                 _, _, query = canned_queries[query_name]
-                return [TextContent(type="text", text=await execute(sqlite_connection, query.sql, arguments))]
+                return [
+                    TextContent(
+                        type="text", text=await execute(sqlite_file, query.sql, arguments, write=bool(query.write))
+                    )
+                ]
         raise ValueError(f"Unknown tool: {name}")
 
     return server
@@ -223,11 +232,10 @@ async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None):
             metadata_dict = yaml.safe_load(metadata_file_descriptor.read())
     else:
         metadata_dict = {}
-    async with aiosqlite.connect(f"file:{sqlite_file}?mode=ro", uri=True) as sqlite_connection:
-        server = await mcp_sqlite_server(sqlite_connection=sqlite_connection, metadata=RootMetadata(**metadata_dict))
-        options = server.create_initialization_options()
-        async with stdio_server() as (read_stream, write_stream):
-            await server.run(read_stream, write_stream, options)
+    server = await mcp_sqlite_server(sqlite_file=sqlite_file, metadata=RootMetadata(**metadata_dict))
+    options = server.create_initialization_options()
+    async with stdio_server() as (read_stream, write_stream):
+        await server.run(read_stream, write_stream, options)
 
 
 def main_cli():

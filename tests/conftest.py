@@ -175,6 +175,15 @@ async def canned_tuple():
                             "hide_sql": True,
                             "sql": "select null as this_should_not_appear_in_description",
                         },
+                        "write_fails": {
+                            "title": "This will attempt to write to the database and should fail",
+                            "sql": "insert into table4 values(:value)",
+                        },
+                        "write_succeeds": {
+                            "title": "This will attempt to write to the database and should succeed",
+                            "write": True,
+                            "sql": "insert into table4 values(:value)",
+                        },
                     },
                 }
             },
