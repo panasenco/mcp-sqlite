@@ -16,7 +16,7 @@ def anyio_backend():
     return "asyncio"
 
 
-async def session_generator(statements, metadata, metadata_yaml=True, db_write=False):
+async def session_generator(statements, metadata, metadata_yaml=True):
     # Create the SQLite database file
     async with aiofiles.tempfile.NamedTemporaryFile(
         "w", prefix="mcp_sqlite_test_", suffix=".db", delete_on_close=False
@@ -51,8 +51,6 @@ async def session_generator(statements, metadata, metadata_yaml=True, db_write=F
                 "--metadata",
                 metadata_file.name,
             ]
-            if db_write:
-                args.append("--write")
             async with stdio_client(
                 StdioServerParameters(
                     command="uv",
@@ -69,12 +67,6 @@ async def session_generator(statements, metadata, metadata_yaml=True, db_write=F
 @pytest.fixture(scope="session")
 async def empty_tuple():
     async for session_tuple in session_generator([], {}):
-        yield session_tuple
-
-
-@pytest.fixture(scope="session")
-async def empty_tuple_write_allowed():
-    async for session_tuple in session_generator([], {}, db_write=True):
         yield session_tuple
 
 

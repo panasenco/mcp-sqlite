@@ -11,7 +11,9 @@ async def test_empty_catalog(empty_tuple):
     result = await empty_session.call_tool("sqlite_get_catalog", {})
     assert len(result.content) == 1
     assert len(result.content[0].text) > 0
-    assert json.loads(result.content[0].text) == {"databases": {"main": {"title": empty_stem, "queries": {}, "tables": {}}}}
+    assert json.loads(result.content[0].text) == {
+        "databases": {"main": {"title": empty_stem, "queries": {}, "tables": {}}}
+    }
 
 
 @pytest.mark.anyio

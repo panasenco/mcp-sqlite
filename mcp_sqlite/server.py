@@ -120,9 +120,7 @@ async def execute(sqlite_connection: aiosqlite.Connection, sql: str, parameters:
     return f"<table>{rows_html}</table>"
 
 
-async def mcp_sqlite_server(
-    sqlite_connection: aiosqlite.Connection, metadata: RootMetadata = RootMetadata(), sqlite_write: bool = False
-) -> Server:
+async def mcp_sqlite_server(sqlite_connection: aiosqlite.Connection, metadata: RootMetadata = RootMetadata()) -> Server:
     """Create a catalog of databases, tables, and columns that are actually in the connection, enriched with optional metadata."""
     server = Server("mcp-sqlite")
 
@@ -142,14 +140,13 @@ async def mcp_sqlite_server(
 
     execute_description = (
         "Call this tool to execute an arbitrary SQLite query. "
+        "Note that the database is open in read-only mode by default, except for canned queries with write: true."
         "Be sure you've called sqlite_get_catalog() first to understand the structure of the data!"
     )
     if len(canned_queries) > 0:
         execute_description += (
             " You should always execute a canned query tool instead of this tool where it makes sense!"
         )
-    if not sqlite_write:
-        execute_description += " Note that the database is open in read-only mode."
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -220,18 +217,14 @@ async def mcp_sqlite_server(
     return server
 
 
-async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None, sqlite_write: bool = False):
+async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None):
     if metadata_yaml_file:
         with open(metadata_yaml_file, "r") as metadata_file_descriptor:
             metadata_dict = yaml.safe_load(metadata_file_descriptor.read())
     else:
         metadata_dict = {}
-    async with aiosqlite.connect(
-        f"file:{sqlite_file}?mode={'rw' if sqlite_write else 'ro'}", uri=True
-    ) as sqlite_connection:
-        server = await mcp_sqlite_server(
-            sqlite_connection=sqlite_connection, metadata=RootMetadata(**metadata_dict), sqlite_write=sqlite_write
-        )
+    async with aiosqlite.connect(f"file:{sqlite_file}?mode=ro", uri=True) as sqlite_connection:
+        server = await mcp_sqlite_server(sqlite_connection=sqlite_connection, metadata=RootMetadata(**metadata_dict))
         options = server.create_initialization_options()
         async with stdio_server() as (read_stream, write_stream):
             await server.run(read_stream, write_stream, options)
@@ -252,12 +245,6 @@ def main_cli():
         help="Path to Datasette-compatible metadata YAML or JSON file.",
     )
     parser.add_argument(
-        "-w",
-        "--write",
-        help="Set this flag to allow the AI agent to write to the database. By default the database is opened in read-only mode.",
-        action="store_true",
-    )
-    parser.add_argument(
         "-v",
         "--verbose",
         help="Be verbose. Include once for INFO output, twice for DEBUG output.",
@@ -267,7 +254,7 @@ def main_cli():
     args = parser.parse_args()
     LOGGING_LEVELS = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=LOGGING_LEVELS[min(args.verbose, len(LOGGING_LEVELS) - 1)])  # cap to last level index
-    anyio.run(run_server, args.sqlite_file, args.metadata, args.write)
+    anyio.run(run_server, args.sqlite_file, args.metadata)
 
 
 if __name__ == "__main__":

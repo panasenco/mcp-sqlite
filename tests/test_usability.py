@@ -2,9 +2,9 @@ import pytest
 
 
 @pytest.mark.anyio
-async def test_default_tools_have_descriptions(empty_tuple_write_allowed):
-    _, empty_session_write_allowed = empty_tuple_write_allowed
-    tools = await empty_session_write_allowed.list_tools()
+async def test_default_tools_have_descriptions(empty_tuple):
+    _, empty_session = empty_tuple
+    tools = await empty_session.list_tools()
     for tool in tools.tools:
         assert tool.description is not None
         assert len(tool.description) >= 80
