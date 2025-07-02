@@ -136,7 +136,7 @@ async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetad
             if query_slug.startswith("sqlite_"):
                 raise ValueError(f"Cannot start query slug with 'sqlite_', as that's a reserved prefix for mcp-sqlite.")
             # Extract named parameters from the query SQL
-            query_params = set(re.findall(r":(\w+)", query.sql))
+            query_params = sorted(set(re.findall(r":(\w+)", query.sql)))
             canned_queries[query_slug] = (query_params, query)
 
     get_catalog_description = (
