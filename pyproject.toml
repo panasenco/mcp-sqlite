@@ -7,9 +7,17 @@ requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.21.0",
     "anyio>=4.9.0",
+    "fastapi>=0.115.14",
     "mcp>=1.9.2",
     "pydantic>=2.11.5",
     "pyyaml>=6.0.2",
+    "uvicorn>=0.34.2",
+]
+
+[project.optional-dependencies]
+sse = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
 ]
 
 [project.scripts]

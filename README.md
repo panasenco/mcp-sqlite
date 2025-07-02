@@ -96,7 +96,7 @@ Compatibility with Datasette allows both AI agents and humans to easily explore 
 
 ### Command-line options
 ```
-usage: mcp-sqlite [-h] [-m METADATA] [-w] [-v] sqlite_file
+usage: mcp-sqlite [-h] [-m METADATA] [-v] [--transport {stdio,sse}] [--host HOST] [--port PORT] sqlite_file
 
 CLI command to start an MCP server for interacting with SQLite data.
 
@@ -107,9 +107,38 @@ options:
   -h, --help            show this help message and exit
   -m METADATA, --metadata METADATA
                         Path to Datasette-compatible metadata YAML or JSON file.
-  -w, --write           Set this flag to allow the AI agent to write to the database. By default the database is opened in read-only mode.
   -v, --verbose         Be verbose. Include once for INFO output, twice for DEBUG output.
+  --transport {stdio,sse}
+                        Transport method to use (stdio or sse)
+  --host HOST           Host to bind to for SSE transport (default: localhost)
+  --port PORT           Port to bind to for SSE transport (default: 3001)
 ```
+
+#### SSE Transport
+
+MCP SQLite now supports SSE (Server-Sent Events) transport over HTTP in addition to the standard stdio transport. This is useful for web-based clients or when you need HTTP-based communication.
+
+**Installation for SSE support:**
+```bash
+uv add mcp-sqlite[sse]
+# or if already installed:
+uv add fastapi uvicorn
+```
+
+**Usage:**
+```bash
+# Start with SSE transport on default host/port (localhost:3001)
+uvx mcp-sqlite path/to/titanic.db --metadata path/to/titanic.yml --transport sse
+
+# Start with custom host and port
+uvx mcp-sqlite path/to/titanic.db --metadata path/to/titanic.yml --transport sse --host 0.0.0.0 --port 8080
+```
+
+The SSE server will be available at:
+- SSE endpoint: `http://localhost:3001/sse` (or your custom host/port)
+- Server info: `http://localhost:3001/` 
+
+**Note:** The SSE implementation is currently simplified and mainly useful for basic HTTP-based access. For full MCP protocol support over SSE, use MCP clients that support SSE transport.
 
 ### Metadata
 
