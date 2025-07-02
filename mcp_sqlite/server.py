@@ -124,7 +124,7 @@ async def execute(sqlite_file: str, sql: str, parameters: dict[str, str] = {}, w
         return f"<table>{rows_html}</table>"
 
 
-async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetadata()) -> Server:
+async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetadata(), prefix: str = "") -> Server:
     """Create a catalog of databases, tables, and columns that are actually in the connection, enriched with optional metadata.
     All kwargs go to aiosqlite.connect()
     """
@@ -133,9 +133,11 @@ async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetad
     canned_queries = {}
     for database in initial_catalog.databases:
         for query_slug, query in initial_catalog.databases[database].queries.items():
+            if query_slug.startswith("sqlite_"):
+                raise ValueError(f"Cannot start query slug with 'sqlite_', as that's a reserved prefix for mcp-sqlite.")
             # Extract named parameters from the query SQL
             query_params = set(re.findall(r":(\w+)", query.sql))
-            canned_queries[f"{database}_{query_slug}"] = (query_slug, query_params, query)
+            canned_queries[query_slug] = (query_params, query)
 
     get_catalog_description = (
         "Call this tool first! Returns the complete catalog of available databases, tables, and columns."
@@ -157,7 +159,7 @@ async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetad
     async def list_tools() -> list[Tool]:
         tools = [
             Tool(
-                name="sqlite_get_catalog",
+                name=f"{prefix}sqlite_get_catalog",
                 description=get_catalog_description,
                 inputSchema={
                     "type": "object",
@@ -165,7 +167,7 @@ async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetad
                 },
             ),
             Tool(
-                name="sqlite_execute",
+                name=f"{prefix}sqlite_execute",
                 description=execute_description,
                 inputSchema={
                     "type": "object",
@@ -178,7 +180,7 @@ async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetad
                 },
             ),
         ]
-        for query_name, (query_slug, query_params, query) in canned_queries.items():
+        for query_slug, (query_params, query) in canned_queries.items():
             if query.title:
                 query_description = f"{query.title.removesuffix('.')}."
             else:
@@ -189,7 +191,7 @@ async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetad
                 query_description += f" SQL of the query:\n{query.sql}"
             tools.append(
                 Tool(
-                    name=f"sqlite_execute_{query_name}",
+                    name=f"{prefix}{query_slug}",
                     description=query_description,
                     inputSchema={
                         "type": "object",
@@ -207,15 +209,15 @@ async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetad
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, str]) -> list[TextContent]:
-        if name == "sqlite_get_catalog":
+        if name == f"{prefix}sqlite_get_catalog":
             catalog = await get_catalog(sqlite_file=sqlite_file, metadata=metadata)
             return [TextContent(type="text", text=catalog.model_dump_json(exclude_none=True))]
-        elif name == "sqlite_execute":
+        elif name == f"{prefix}sqlite_execute":
             return [TextContent(type="text", text=await execute(sqlite_file, arguments["sql"]))]
-        elif name.startswith("sqlite_execute_"):
-            query_name = name.removeprefix("sqlite_execute_")
-            if query_name in canned_queries:
-                _, _, query = canned_queries[query_name]
+        else:
+            query_slug = name.removeprefix(prefix)
+            if query_slug in canned_queries:
+                _, query = canned_queries[query_slug]
                 return [
                     TextContent(
                         type="text", text=await execute(sqlite_file, query.sql, arguments, write=bool(query.write))
@@ -226,13 +228,13 @@ async def mcp_sqlite_server(sqlite_file: str, metadata: RootMetadata = RootMetad
     return server
 
 
-async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None):
+async def run_server(sqlite_file: str, metadata_yaml_file: str | None = None, prefix: str = ""):
     if metadata_yaml_file:
         with open(metadata_yaml_file, "r") as metadata_file_descriptor:
             metadata_dict = yaml.safe_load(metadata_file_descriptor.read())
     else:
         metadata_dict = {}
-    server = await mcp_sqlite_server(sqlite_file=sqlite_file, metadata=RootMetadata(**metadata_dict))
+    server = await mcp_sqlite_server(sqlite_file=sqlite_file, metadata=RootMetadata(**metadata_dict), prefix=prefix)
     options = server.create_initialization_options()
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, options)
@@ -251,6 +253,13 @@ def main_cli():
         "-m",
         "--metadata",
         help="Path to Datasette-compatible metadata YAML or JSON file.",
+        required=True,
+    )
+    parser.add_argument(
+        "-p",
+        "--prefix",
+        help="Prefix for MCP tools. Defaults to no prefix.",
+        default="",
     )
     parser.add_argument(
         "-v",
@@ -262,7 +271,7 @@ def main_cli():
     args = parser.parse_args()
     LOGGING_LEVELS = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=LOGGING_LEVELS[min(args.verbose, len(LOGGING_LEVELS) - 1)])  # cap to last level index
-    anyio.run(run_server, args.sqlite_file, args.metadata)
+    anyio.run(run_server, args.sqlite_file, args.metadata, args.prefix)
 
 
 if __name__ == "__main__":

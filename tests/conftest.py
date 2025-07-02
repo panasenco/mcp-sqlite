@@ -16,7 +16,7 @@ def anyio_backend():
     return "asyncio"
 
 
-async def session_generator(statements, metadata, metadata_yaml=True):
+async def session_generator(statements, metadata, metadata_yaml=True, prefix=None):
     # Create the SQLite database file
     async with aiofiles.tempfile.NamedTemporaryFile(
         "w", prefix="mcp_sqlite_test_", suffix=".db", delete_on_close=False
@@ -51,6 +51,8 @@ async def session_generator(statements, metadata, metadata_yaml=True):
                 "--metadata",
                 metadata_file.name,
             ]
+            if prefix:
+                args += ["--prefix", prefix]
             async with stdio_client(
                 StdioServerParameters(
                     command="uv",
@@ -62,6 +64,11 @@ async def session_generator(statements, metadata, metadata_yaml=True):
                     yield db_file_stem, session
             # Give time to the MCP server to exit before deleting the files
             await asyncio.sleep(1)
+
+
+@pytest.fixture(scope="session")
+async def get_session_generator():
+    return session_generator
 
 
 @pytest.fixture(scope="session")
@@ -188,5 +195,6 @@ async def canned_tuple():
                 }
             },
         },
+        prefix="custom_prefix_",
     ):
         yield session_tuple

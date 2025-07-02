@@ -28,7 +28,7 @@ Provide useful data to AI agents without giving them access to external systems.
               age: The passenger's age at the time of the crash.
               # Other columns are not documented but are still visible to the AI agent
         queries:
-          survivors_of_age:
+          get_survivors_of_age:
             title: Count survivors of a specific age
             description: Returns the total counts of passengers and survivors, both for all ages and for a specific provided age.
             sql: |-
@@ -56,7 +56,7 @@ Provide useful data to AI agents without giving them access to external systems.
     }
     ```
 
-Your AI agent should now be able to use mcp-sqlite tools `sqlite_get_catalog`, `sqlite_execute`, and `sqlite_execute_main_survivors_of_age`!
+Your AI agent should now be able to use mcp-sqlite tools `sqlite_get_catalog`, `sqlite_execute`, and `get_survivors_of_age`!
 
 ## Interactive exploration with MCP Inspector and Datasette
 
@@ -89,14 +89,14 @@ Compatibility with Datasette allows both AI agents and humans to easily explore 
   If you have a usecase for the catalog as a resource, open an issue and we'll bring it back!
 - **sqlite_execute(sql)**: Tool the agent can call to execute arbitrary SQL. The table results are returned as HTML.
   For more information about why HTML is the best format for LLMs to process, see [Siu et al](https://arxiv.org/abs/2305.13062).
-- **sqlite_execute_main_{canned query name}({canned query args})**: A tool is created for each canned query in the metadata, allowing the agent to run predefined queries without writing any SQL.
+- **{canned query name}({canned query args})**: A tool is created for each canned query in the metadata, allowing the agent to run predefined queries without writing any SQL.
 
 
 ## Usage
 
 ### Command-line options
 ```
-usage: mcp-sqlite [-h] [-m METADATA] [-w] [-v] sqlite_file
+usage: mcp-sqlite [-h] -m METADATA [-p PREFIX] [-v] sqlite_file
 
 CLI command to start an MCP server for interacting with SQLite data.
 
@@ -107,7 +107,8 @@ options:
   -h, --help            show this help message and exit
   -m METADATA, --metadata METADATA
                         Path to Datasette-compatible metadata YAML or JSON file.
-  -w, --write           Set this flag to allow the AI agent to write to the database. By default the database is opened in read-only mode.
+  -p PREFIX, --prefix PREFIX
+                        Prefix for MCP tools. Defaults to no prefix.
   -v, --verbose         Be verbose. Include once for INFO output, twice for DEBUG output.
 ```
 
@@ -121,11 +122,13 @@ Never rely on hiding a table from the catalog as a security feature.
 #### Canned queries
 [Canned queries](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) are each turned into a separate callable MCP tool by mcp-sqlite.
 
-For example, a query named `my_canned_query` will become a tool `sqlite_execute_main_my_canned_query`.
+For example, a query named `my_canned_query` will become a tool `my_canned_query`.
 
 The canned queries functionality is still in active development with more features planned for development soon:
 
-| Datasette canned query feature | Supported in mcp-sqlite? |
+## Roadmap
+
+| Datasette query feature | Supported in mcp-sqlite? |
 | ------------------------------ | ------------------------ |
 | [Displayed in catalog](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
 | [Executable](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
@@ -134,6 +137,8 @@ The canned queries functionality is still in active development with more featur
 | [Parameters](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ✅ |
 | [Explicit parameters](https://docs.datasette.io/en/stable/sql_queries.html#canned-queries) | ❌ (planned) |
 | [Hide SQL](https://docs.datasette.io/en/stable/sql_queries.html#hide-sql) | ✅ |
-| [Fragments](https://docs.datasette.io/en/stable/sql_queries.html#fragment) | ❌ (not planned) |
 | [Write restrictions on canned queries](https://docs.datasette.io/en/stable/sql_queries.html#writable-canned-queries) | ✅ |
+| [Pagination](https://docs.datasette.io/en/stable/sql_queries.html#pagination) | ❌ (planned) |
+| [Cross-database queries](https://docs.datasette.io/en/stable/sql_queries.html#cross-database-queries) | ❌ (planned) |
+| [Fragments](https://docs.datasette.io/en/stable/sql_queries.html#fragment) | ❌ (not planned) |
 | [Magic parameters](https://docs.datasette.io/en/stable/sql_queries.html#magic-parameters) | ❌ (not planned) |
