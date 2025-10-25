@@ -1,0 +1,13 @@
+{
+    "servers": {
+        "sqlite_sample": {
+            "command": "uvx",
+            "args": [
+                "mcp-sqlite",
+                "sample/titanic.db",
+                "--metadata",
+                "sample/titanic.yml"
+            ]
+        }
+    }
+}

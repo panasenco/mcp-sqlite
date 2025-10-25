@@ -13,50 +13,21 @@ Provide useful data to AI agents without giving them access to external systems.
 - AI agents can execute arbitrary SQL queries with `sqlite_execute`.
 
 
-## Quickstart
+## Quickstart using Visual Studio Code
 1.  Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
-2.  Download the sample SQLite database [titanic.db](https://github.com/davidjamesknight/SQLite_databases_for_learning_data_science/raw/refs/heads/main/titanic.db).
-3.  Create a metadata file `titanic.yml` for your dataset:
-    ```yaml
-    databases:
-      titanic:
-        tables:
-          Observation:
-            description: Main table connecting passenger attributes to observed outcomes.
-            columns:
-              survived: "0/1 indicator whether the passenger survived."
-              age: The passenger's age at the time of the crash.
-              # Other columns are not documented but are still visible to the AI agent
-        queries:
-          get_survivors_of_age:
-            title: Count survivors of a specific age
-            description: Returns the total counts of passengers and survivors, both for all ages and for a specific provided age.
-            sql: |-
-              select
-                count(*) as total_passengers,
-                sum(survived) as survived_passengers,
-                sum(case when age = :age then 1 else 0 end) as total_specific_age,
-                sum(case when age = :age and survived = 1 then 1 else 0 end) as survived_specific_age
-              from Observation
-    ```
-4.  Create an entry in your MCP client for your database and metadata
-    ```json
-    {
-        "mcpServers": {
-            "sqlite": {
-                "command": "uvx",
-                "args": [
-                    "mcp-sqlite",
-                    "/absolute/path/to/titanic.db",
-                    "--metadata",
-                    "/absolute/path/to/titanic.yml"
-                ]
-            }
-        }
-    }
-    ```
+2.  Install [Visual Studio Code](https://code.visualstudio.com) if you don't already have it.
+    Turn on GitHub Copilot.
+3.  Open this repo in VS Code.
+    Open a GitHub Copilot agent mode chat.
+    Check the available tools - you should see MCP Server: sqlite_sample with three available tools.
 
-Your AI agent should now be able to use mcp-sqlite tools `sqlite_get_catalog`, `sqlite_execute`, and `get_survivors_of_age`!
+    ![](https://github.com/panasenco/mcp-sqlite/raw/main/images/vs-code-mcp-sqlite-sample.png)
+4.  You should be able to ask Copilot in agent mode a question like "Get Titanic survivors of age 28" and get a response.
+
+    ![](https://github.com/panasenco/mcp-sqlite/raw/main/images/github-copilot-agent-mode-sample.png)
+5.  Use the sample MCP configuration file [mcp.json](.vscode/mcp.json) and the sample metadata file
+    [titanic.yml](sample/titanic.yml) as a starting point for your own configuration.
+
 
 ## Interactive exploration with MCP Inspector and Datasette
 

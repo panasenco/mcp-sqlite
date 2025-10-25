@@ -1,0 +1,20 @@
+databases:
+  titanic:
+    tables:
+      Observation:
+        description: Main table connecting passenger attributes to observed outcomes.
+        columns:
+          survived: "0/1 indicator whether the passenger survived."
+          age: The passenger's age at the time of the crash.
+          # Other columns are not documented but are still visible to the AI agent
+    queries:
+      get_survivors_of_age:
+        title: Count survivors of a specific age
+        description: Returns the total counts of passengers and survivors, both for all ages and for a specific provided age.
+        sql: |-
+          select
+            count(*) as total_passengers,
+            sum(survived) as survived_passengers,
+            sum(case when age = :age then 1 else 0 end) as total_specific_age,
+            sum(case when age = :age and survived = 1 then 1 else 0 end) as survived_specific_age
+          from Observation
