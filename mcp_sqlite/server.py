@@ -253,7 +253,6 @@ def main_cli():
         "-m",
         "--metadata",
         help="Path to Datasette-compatible metadata YAML or JSON file.",
-        required=True,
     )
     parser.add_argument(
         "-p",

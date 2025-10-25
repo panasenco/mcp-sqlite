@@ -43,13 +43,13 @@ Use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) da
 1.  Install [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
 2.  Run:
     ```
-    npx @modelcontextprotocol/inspector uvx mcp-sqlite path/to/titanic.db --metadata path/to/titanic.yml
+    npx @modelcontextprotocol/inspector uvx mcp-sqlite sample/titanic.db --metadata sample/titanic.yml
     ```
 
 ### Datasette
 Since `mcp-sqlite` metadata is compatible with the Datasette metadata file, you can also explore your data with Datasette:
 ```
-uvx datasette serve path/to/titanic.db --metadata path/to/titanic.yml
+uvx datasette serve sample/titanic.db --metadata sample/titanic.yml
 ```
 Compatibility with Datasette allows both AI agents and humans to easily explore the same local data!
 
@@ -67,7 +67,7 @@ Compatibility with Datasette allows both AI agents and humans to easily explore 
 
 ### Command-line options
 ```
-usage: mcp-sqlite [-h] -m METADATA [-p PREFIX] [-v] sqlite_file
+usage: mcp-sqlite [-h] [-m METADATA] [-p PREFIX] [-v] sqlite_file
 
 CLI command to start an MCP server for interacting with SQLite data.
 
@@ -76,10 +76,9 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -m METADATA, --metadata METADATA
+  -m, --metadata METADATA
                         Path to Datasette-compatible metadata YAML or JSON file.
-  -p PREFIX, --prefix PREFIX
-                        Prefix for MCP tools. Defaults to no prefix.
+  -p, --prefix PREFIX   Prefix for MCP tools. Defaults to no prefix.
   -v, --verbose         Be verbose. Include once for INFO output, twice for DEBUG output.
 ```
 

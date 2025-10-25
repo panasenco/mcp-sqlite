@@ -1,6 +1,6 @@
 [project]
 name = "mcp-sqlite"
-version = "0.3.1"
+version = "0.3.2"
 description = "MCP server for SQLite files. Supports Datasette-compatible metadata!"
 readme = "README.md"
 requires-python = ">=3.12"

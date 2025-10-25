@@ -5,7 +5,7 @@
 3.  Run the server with [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector)
     (you'll have to [install Node.js and npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) first):
     ```
-    npx @modelcontextprotocol/inspector uv run mcp_sqlite/server.py titanic.db --metadata titanic.yml
+    npx @modelcontextprotocol/inspector uv run mcp_sqlite/server.py sample/titanic.db --metadata sample/titanic.yml
     ```
 
 - Run `python -m pytest` to run tests.
