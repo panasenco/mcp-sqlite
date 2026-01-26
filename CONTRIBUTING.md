@@ -1,3 +1,6 @@
+## Branch protection
+It's not possible to push to `main` without a PR.
+
 ## Developing
 1.  Clone this repo locally.
 2.  Run `uv venv` to create the Python virtual environment.
